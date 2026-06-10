@@ -23,9 +23,7 @@ export interface Config {
 
   ai: {
     provider: AiProvider;
-    baseUrl: string;
     model?: string;
-    apiKey?: string;
     timeoutMs: number;
     reasoningEffort?: string;
   };
@@ -67,9 +65,7 @@ export function getConfig(): Config {
   const aiProvider = (getEnv('AI_PROVIDER', 'mock') as AiProvider) || 'mock';
   const ai = {
     provider: aiProvider,
-    baseUrl: getEnv('AI_BASE_URL', 'https://api.x.ai/v1')!,
     model: getEnv('AI_MODEL'),
-    apiKey: getEnv('AI_API_KEY'),
     timeoutMs: parseInt(getEnv('AI_TIMEOUT_MS', '120000')!, 10),
     reasoningEffort: getEnv('AI_REASONING_EFFORT'), // 'low' | 'medium' | 'high' (for supported xAI models)
   };
