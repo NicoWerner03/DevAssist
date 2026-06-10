@@ -32,7 +32,18 @@ export async function processIssue(projectId: string | number, issueIid: string 
   };
 
   log.info('Starting AI analysis — this step can take 30-120+ seconds (opencode + model call). Set LOG_LEVEL=debug for more detail.');
-  const analysis = await ai.analyzeTicket(ctx);
+  let analysis: any;
+  try {
+    analysis = await ai.analyzeTicket(ctx);
+  } catch (aiErr: any) {
+    log.error('AI analysis failed completely', { error: aiErr.message });
+    try {
+      await gitlab.createNote(projectId, issueIid, `## Dev-Assist: Analysis Error\n\nI encountered an error while trying to analyze this issue:\n\`\`\`\n${aiErr.message}\n\`\`\`\nPlease check the logs or try again.`);
+    } catch (postErr: any) {
+      log.error('Failed to post analysis error note to GitLab', { error: postErr.message });
+    }
+    throw aiErr;
+  }
   log.info('AI analysis complete', { summaryLen: analysis.summary?.length || 0 });
 
   // Decide response style based on how many concrete open questions remain.
@@ -48,8 +59,18 @@ export async function processIssue(projectId: string | number, issueIid: string 
     commentToPost = renderClarificationComment(analysis);
   } else {
     // Post the full structured proposal directly as the comment (instead of short teaser)
-    // so the complete ticket is visible immediately.
-    commentToPost = fullContext;
+    // so the complete ticket is visible immediately, prepended with a clear call-to-action.
+    commentToPost = [
+      '## Dev-Assist: Structured Proposal',
+      '',
+      'I have generated a structured proposal for this ticket/issue based on the details provided.',
+      '',
+      'If you approve of these details, reply with **`@dev-assist publish`** to apply it. The conversation comments will then be cleaned up automatically.',
+      '',
+      '---',
+      '',
+      fullContext
+    ].join('\n');
   }
 
   if (needsClarification) {

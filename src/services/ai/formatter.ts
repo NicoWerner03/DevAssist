@@ -90,7 +90,7 @@ export function getClarificationReplyTemplate(): string {
 }
 
 function renderList(title: string, items?: string[]): string {
-  if (!items || items.length === 0) {
+  if (!items || !Array.isArray(items) || items.length === 0) {
     return `### ${title}\nNot enough information available yet.`;
   }
 

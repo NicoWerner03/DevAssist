@@ -3,7 +3,7 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-export type AiProvider = 'mock' | 'xai' | 'opencode' | 'openai-compat';
+export type AiProvider = 'mock' | 'opencode';
 
 export interface Config {
   port: number;
@@ -16,6 +16,7 @@ export interface Config {
     useGlab: boolean;
     glabHostname?: string;
     writeBack: boolean;
+    requireSignature: boolean;
   };
 
   webhookSigningSecret?: string;
@@ -58,6 +59,7 @@ export function getConfig(): Config {
     useGlab: getEnv('GITLAB_USE_GLAB', 'true')!.toLowerCase() === 'true',
     glabHostname: getEnv('GITLAB_GLAB_HOSTNAME'),
     writeBack: getEnv('GITLAB_WRITE_BACK', 'true')!.toLowerCase() === 'true',
+    requireSignature: getEnv('GITLAB_REQUIRE_SIGNATURE', 'false')!.toLowerCase() === 'true',
   };
 
   const webhookSigningSecret = getEnv('GITLAB_WEBHOOK_SIGNING_SECRET');

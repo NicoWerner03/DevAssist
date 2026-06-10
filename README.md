@@ -151,7 +151,7 @@ src/
 - glab is the common "no extra token" path.
 - After publish the conversation comments that involved `@dev-assist` are removed and the issue becomes a clean, structured ticket.
 
-See `describtions/project_describtion.txt` for the original German requirements.
+See `descriptions/project_description.txt` for the original German requirements.
 
 ## Development
 

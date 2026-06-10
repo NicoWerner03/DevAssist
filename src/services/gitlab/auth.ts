@@ -41,13 +41,17 @@ export function verifyWebhookRequest(
   const payload = `${timestamp}:${bodyStr}`;
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
-  if (crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) {
+  const expectedBuf = Buffer.from(expected);
+  const signatureBuf = Buffer.from(signature);
+
+  if (expectedBuf.length === signatureBuf.length && crypto.timingSafeEqual(expectedBuf, signatureBuf)) {
     return { ok: true };
   }
 
   // Fallback: direct body hmac (older / some self-managed)
   const direct = crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');
-  if (crypto.timingSafeEqual(Buffer.from(direct), Buffer.from(signature))) {
+  const directBuf = Buffer.from(direct);
+  if (directBuf.length === signatureBuf.length && crypto.timingSafeEqual(directBuf, signatureBuf)) {
     return { ok: true };
   }
 

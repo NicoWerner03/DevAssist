@@ -38,7 +38,7 @@ function buildUserPrompt(ctx: TicketContextForAI): string {
   if (ctx.comments && ctx.comments.length) {
     parts.push('\n## Recent Comments (for context)');
     for (const c of ctx.comments.slice(-6)) {
-      parts.push(`- ${c.author?.username || 'user'}: ${String(c.body || '').slice(0, 300)}`);
+      parts.push(`- ${c.author?.username || 'user'}: ${String(c.body || '').slice(0, 4000)}`);
     }
   }
   parts.push('\nOutput ONLY the JSON object now.');
@@ -232,83 +232,14 @@ function runChild(bin: string, args: string[], options?: { cwd?: string; timeout
   });
 }
 
-async function analyzeWithXai(ctx: TicketContextForAI, cfg: ReturnType<typeof getConfig>): Promise<RequirementAnalysis> {
-  const apiKey = cfg.ai.apiKey;
-  if (!apiKey) throw new Error('AI_API_KEY is required for xai provider');
-
-  // Use the shared instructions so behavior stays identical to the opencode path.
-  const system = ANALYSIS_PERSONA;
-
-  const user = buildUserPrompt(ctx);
-
-  const start = Date.now();
-  logger.info('Calling xAI (Grok) for analysis', { model: cfg.ai.model, baseUrl: cfg.ai.baseUrl, reasoningEffort: cfg.ai.reasoningEffort || null });
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), cfg.ai.timeoutMs);
-
-  try {
-    const res = await fetch(`${cfg.ai.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: cfg.ai.model || 'xai/grok-3-latest',
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-        temperature: 0.2,
-        max_tokens: 4000,
-        ...(cfg.ai.reasoningEffort && { reasoning_effort: cfg.ai.reasoningEffort }),
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      const t = await res.text().catch(() => '');
-      throw new Error(`xAI error ${res.status}: ${t.slice(0, 300)}`);
-    }
-
-    const data: any = await res.json();
-    const content = data?.choices?.[0]?.message?.content || '';
-    logger.info('xAI response received', { durationMs: Date.now() - start, chars: content.length });
-
-    try {
-      return parseAnalysisJson(content);
-    } catch (parseErr: any) {
-      logger.error('xAI analysis failed (schema violation)', { error: parseErr.message });
-      logger.warn('Falling back to mock analysis because the model did not return valid schema-compliant JSON. This often happens when the issue has very little context.');
-      return createMockAnalysis(ctx);
-    }
-  } catch (e: any) {
-    clearTimeout(timeout);
-    logger.error('xAI analysis failed', { error: e.message });
-    logger.warn('Falling back to mock analysis');
-    return createMockAnalysis(ctx);
-  }
-}
-
 export function createAiService(): AiService {
   const cfg = getConfig();
 
   return {
     async analyzeTicket(ctx) {
-      // For the 'opencode' provider the API key is not required in *this* process
-      // (the opencode CLI consumes AI_API_KEY from its environment or its own config).
-      // Only force mock for direct providers when the key is missing.
-      const needsKey = cfg.ai.provider === 'xai' || cfg.ai.provider === 'openai-compat';
-      if (cfg.ai.provider === 'mock' || (needsKey && !cfg.ai.apiKey)) {
-        logger.info('Using mock AI analysis (no key or provider=mock)');
+      if (cfg.ai.provider === 'mock') {
+        logger.info('Using mock AI analysis (provider=mock)');
         return createMockAnalysis(ctx);
-      }
-
-      if (cfg.ai.provider === 'xai' || cfg.ai.provider === 'openai-compat') {
-        return analyzeWithXai(ctx, cfg);
       }
 
       if (cfg.ai.provider === 'opencode') {
@@ -322,7 +253,7 @@ export function createAiService(): AiService {
 }
 
 async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<RequirementAnalysis> {
-  const fs = await import('fs');
+  const fs = await import('fs/promises');
   const pathMod = await import('path');
   const { spawn } = await import('child_process');
 
@@ -333,9 +264,9 @@ async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<Requirement
   // reserved for generated ticket context files.
   const runtimeDir = pathMod.join(process.cwd(), '.opencode', 'runtime');
   const runtimePromptDir = pathMod.join(runtimeDir, '.opencode', 'prompts');
-  fs.mkdirSync(runtimePromptDir, { recursive: true });
-  fs.copyFileSync(pathMod.join(process.cwd(), 'opencode.json'), pathMod.join(runtimeDir, 'opencode.json'));
-  fs.copyFileSync(
+  await fs.mkdir(runtimePromptDir, { recursive: true });
+  await fs.copyFile(pathMod.join(process.cwd(), 'opencode.json'), pathMod.join(runtimeDir, 'opencode.json'));
+  await fs.copyFile(
     pathMod.join(process.cwd(), '.opencode', 'prompts', 'requirement-analysis.md'),
     pathMod.join(runtimePromptDir, 'requirement-analysis.md')
   );
@@ -343,7 +274,16 @@ async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<Requirement
   const npmOpencodeExe = process.platform === 'win32' && process.env.APPDATA
     ? pathMod.join(process.env.APPDATA, 'npm', 'node_modules', 'opencode-ai', 'bin', 'opencode.exe')
     : '';
-  const bin = npmOpencodeExe && fs.existsSync(npmOpencodeExe)
+
+  let hasNpmOpencodeExe = false;
+  if (npmOpencodeExe) {
+    try {
+      await fs.access(npmOpencodeExe);
+      hasNpmOpencodeExe = true;
+    } catch {}
+  }
+
+  const bin = hasNpmOpencodeExe
     ? npmOpencodeExe
     : (process.platform === 'win32' ? 'opencode.cmd' : 'opencode');
 
@@ -374,7 +314,7 @@ async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<Requirement
     timeoutMs: cfg.ai.timeoutMs,
   });
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const child = spawn(bin, runArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env },
@@ -390,18 +330,17 @@ async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<Requirement
     child.stdin.end();
 
     const timeout = setTimeout(() => {
-      logger.warn('opencode analysis timed out — killing process and falling back to mock', {
+      logger.warn('opencode analysis timed out — killing process', {
         timeoutMs: cfg.ai.timeoutMs,
       });
       try { child.kill('SIGKILL'); } catch {}
-      resolve(createMockAnalysis(ctx));
+      reject(new Error(`opencode analysis timed out after ${cfg.ai.timeoutMs}ms`));
     }, cfg.ai.timeoutMs);
 
     child.on('error', (err: any) => {
       clearTimeout(timeout);
       logger.error('opencode spawn failed', { error: err.message });
-      logger.warn('Falling back to mock analysis');
-      resolve(createMockAnalysis(ctx));
+      reject(err);
     });
 
     child.on('close', async (code) => {
@@ -418,8 +357,8 @@ async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<Requirement
       }
 
       if (!output) {
-        logger.warn('opencode produced no stdout — falling back to mock');
-        return resolve(createMockAnalysis(ctx));
+        logger.warn('opencode produced no stdout');
+        return reject(new Error('opencode produced no stdout output'));
       }
 
       logger.info('opencode response received', { chars: output.length, exitCode: code });
@@ -448,8 +387,7 @@ async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<Requirement
           error: parseErr.message,
           preview: output.slice(0, 300),
         });
-        logger.warn('Falling back to mock analysis due to parse error');
-        resolve(createMockAnalysis(ctx));
+        reject(parseErr);
       }
     });
   });

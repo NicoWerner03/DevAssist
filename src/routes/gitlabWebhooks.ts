@@ -44,6 +44,11 @@ export function createGitLabWebhookRouter() {
     if (!verification.ok) {
       logger.warn('Webhook signature verification failed', { reason: verification.reason });
 
+      if (config.gitlab.requireSignature) {
+        logger.error('Signature verification required, aborting request');
+        return res.status(401).json({ error: 'invalid signature' });
+      }
+
       // During development / manual testing we still want to process the payload
       // (GitLab webhooks without secret or with missing headers are common at the beginning).
       // In production with a properly configured webhook + secret you can make this stricter.
