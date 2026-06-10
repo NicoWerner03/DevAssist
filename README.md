@@ -22,7 +22,7 @@ The resulting tickets always follow the **same reliable structure** (JSON schema
 - TypeScript, Express
 - GitLab webhooks + `glab` (primary, often no `GITLAB_TOKEN` needed in `.env`) or PAT fallback
 - AI via **opencode.ai SDK + agents/skills** (primary) or direct OpenAI-compatible providers
-- Current model: Grok (xAI). Easy to switch.
+- Provider and model are configured through `.env` and `opencode.json`.
 - All secrets in `.env`
 - Local context bridge: `.dev-assist/issues/<projectId>/<issueIid>/context.md`
 
@@ -85,16 +85,17 @@ Expose the service (for GitLab to reach it):
 - Recommended: Cloudflare Tunnel (`cloudflared tunnel --url http://localhost:5000`)
 - Add the resulting `https://...trycloudflare.com/webhooks/gitlab/issues` (or your permanent hostname) as a webhook in the GitLab project (Issues and Note events, Secret = the signing secret).
 
-## Using real AI (Grok / xAI)
+## Using Real AI
 
-1. Get key at https://console.x.ai
+1. Create an API key with your AI provider.
 2. In .env:
    ```
-   AI_PROVIDER=xai
+   AI_PROVIDER=openai-compat
    AI_API_KEY=your-api-key
-   AI_MODEL=xai/grok-3-latest   # or whatever you prefer
+   AI_BASE_URL=https://your-provider.example/v1
+   AI_MODEL=your-model-name
    ```
-3. Or use `AI_PROVIDER=opencode` + proper `opencode.json` (see below).
+3. Or use `AI_PROVIDER=opencode` with a matching `opencode.json` model/provider configuration (see below).
 
 ## opencode.ai SDK + Agents & Skills
 
