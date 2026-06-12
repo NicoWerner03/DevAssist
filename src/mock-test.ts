@@ -74,7 +74,7 @@ async function runSimulation() {
 
       // --- Scenario 1.5: Simulating User replying with details and triggering @dev-assist again ---
       logger.info(">>> Simulating User replying with missing information and mentioning @dev-assist...");
-      const replyBody = "Ich nutze Chrome unter Windows 11. Reproduktionsschritte:\n1. Gehe auf http://localhost:3000\n2. Klicke auf 'Login mit GitLab'\n3. Das Popup schließt sich sofort und im Netzwerk-Tab steht ein 500 Internal Server Error.\nBitte analysieren @dev-assist";
+      const replyBody = "I am using Chrome on Windows 11. Steps to reproduce:\n1. Go to http://localhost:3000\n2. Click on 'Login with GitLab'\n3. The popup closes immediately and the network tab shows a 500 Internal Server Error.\nPlease analyze @dev-assist";
       
       comments.push({
         id: 2001,

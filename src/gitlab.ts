@@ -6,8 +6,8 @@ import logger from "./logger.js";
 // Simulation State
 let mockComments: any[] = [];
 let mockIssue = {
-  title: "Bug beim Login mit OAuth @dev-assist",
-  description: "Wenn ich auf Login klicke passiert gar nichts. Bitte fixen.",
+  title: "Bug during login with OAuth @dev-assist",
+  description: "When I click on login, nothing happens. Please fix.",
   author: { username: "nico03werner" }
 };
 
