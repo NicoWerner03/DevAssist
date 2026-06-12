@@ -1,0 +1,27 @@
+{
+  "name": "gitlab-dev-assist-webhook",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GitLab Webhook Developer Assistant using Opencode.ai and glab",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "tunnel": "cloudflared tunnel --url http://localhost:3000"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.17.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.30",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.22.4",
+    "typescript": "^5.4.3"
+  }
+}
