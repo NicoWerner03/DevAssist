@@ -136,7 +136,7 @@ export async function handleGitlabWebhook(req: Request, res: Response, opencodeC
       if ((action === "open" || action === "update") && mentionsAssist) {
         // Skip if this is a publish command (handled via note/comments normally, but check just in case)
         if (description.includes("@dev-assist publish")) {
-          await runPublishCommand(projectId, issueIid, res);
+          await runPublishCommand(projectId, issueIid, res, opencodeClient);
           return;
         }
 
@@ -163,7 +163,7 @@ export async function handleGitlabWebhook(req: Request, res: Response, opencodeC
             logger.info(`[WEBHOOK] Received publish command for Issue #${issueIid} in Project ${projectId}`);
             res.status(200).json({ message: "Publishing ticket..." });
 
-            runPublishCommand(projectId, issueIid).catch(err => {
+            runPublishCommand(projectId, issueIid, undefined, opencodeClient).catch(err => {
               logger.error(`[WEBHOOK] Error publishing issue #${issueIid}: ` + err.message);
             });
             return;
@@ -247,7 +247,6 @@ type ImageSource = {
 };
 
 const IMAGE_URL_EXTENSION = /\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|tiff?)(?:[?#].*)?$/i;
-const DEFAULT_OPENAI_VISION_MODEL = "gpt-5.4";
 const DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 function stripTrailingUrlPunctuation(value: string): string {
@@ -460,17 +459,9 @@ function resolveImageUrl(url: string, issue: any): string | null {
   }
 }
 
-function getOpenAiVisionConfig(): { apiKey: string; model: string; maxImageBytes: number } | null {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
-  const parsedMaxBytes = Number.parseInt(process.env.OPENAI_VISION_MAX_IMAGE_BYTES || "", 10);
-
-  return {
-    apiKey,
-    model: process.env.OPENAI_VISION_MODEL || DEFAULT_OPENAI_VISION_MODEL,
-    maxImageBytes: Number.isFinite(parsedMaxBytes) && parsedMaxBytes > 0 ? parsedMaxBytes : DEFAULT_MAX_IMAGE_BYTES
-  };
+function getVisionMaxImageBytes(): number {
+  const parsedMaxBytes = Number.parseInt(process.env.OPENCODE_VISION_MAX_IMAGE_BYTES || "", 10);
+  return Number.isFinite(parsedMaxBytes) && parsedMaxBytes > 0 ? parsedMaxBytes : DEFAULT_MAX_IMAGE_BYTES;
 }
 
 function getGitlabImageFetchHeaders(): Record<string, string> {
@@ -506,77 +497,80 @@ async function downloadImageAsDataUrl(reference: ImageReference, issue: any, max
   return `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
 }
 
-function extractOpenAiOutputText(responseBody: any): string {
-  if (typeof responseBody.output_text === "string") {
-    return responseBody.output_text.trim();
-  }
-
-  const textParts: string[] = [];
-  for (const output of responseBody.output || []) {
-    for (const content of output.content || []) {
-      if (typeof content.text === "string") {
-        textParts.push(content.text);
-      }
-    }
-  }
-
-  return textParts.join("\n").trim();
-}
-
-async function analyzeImageWithOpenAi(reference: ImageReference, dataUrl: string, apiKey: string, model: string): Promise<string | null> {
+async function analyzeImageWithOpencode(
+  reference: ImageReference,
+  dataUrl: string,
+  opencodeClient: OpencodeClient
+): Promise<string | null> {
   const prompt = [
     "Analyze this screenshot or image for a software development ticket.",
     "Return one concise English sentence that captures the visible UI state, error message, log, or artifact relevant to debugging.",
     "Do not invent details that are not visible.",
+    "Return only the sentence, without Markdown formatting or extra commentary.",
     `Source: ${reference.source}`,
     `User-provided context: ${reference.context || "No surrounding context provided."}`
   ].join("\n");
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      input: [
-        {
-          role: "user",
-          content: [
-            { type: "input_text", text: prompt },
-            { type: "input_image", image_url: dataUrl, detail: "original" }
-          ]
-        }
-      ],
-      max_output_tokens: 120
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI vision request failed (${response.status} ${response.statusText}): ${errorText.slice(0, 500)}`);
+  const sessionRes = await opencodeClient.session.create();
+  if (!sessionRes.data || !sessionRes.data.id) {
+    throw new Error("Failed to create Opencode vision session: no session ID returned");
   }
 
-  const responseBody = await response.json();
-  const outputText = extractOpenAiOutputText(responseBody);
-  return outputText ? truncateVisionSummary(outputText) : null;
+  const sessionId = sessionRes.data.id;
+  try {
+    const promptRes = await opencodeClient.session.prompt({
+      path: { id: sessionId },
+      body: {
+        parts: [
+          { type: "text", text: prompt },
+          {
+            type: "file",
+            mime: getMimeTypeFromDataUrl(dataUrl),
+            filename: reference.url.split("/").pop()?.split("?")[0] || "image",
+            url: dataUrl
+          }
+        ]
+      }
+    });
+
+    if (!promptRes.data || !promptRes.data.parts) {
+      throw new Error("Failed to get response from Opencode vision session: no parts returned.");
+    }
+
+    const textParts = promptRes.data.parts.filter(p => p.type === "text");
+    const outputText = textParts.map(p => (p as any).text).join("\n").trim();
+    return outputText ? truncateVisionSummary(outputText) : null;
+  } finally {
+    await opencodeClient.session.delete({ path: { id: sessionId } }).catch(err => {
+      logger.error(`Failed to delete vision session ${sessionId}: ` + err.message);
+    });
+  }
 }
 
-async function enrichImageReferencesWithVision(references: ImageReference[], issue: any): Promise<void> {
-  const visionConfig = getOpenAiVisionConfig();
-  if (!visionConfig || references.length === 0 || process.env.IS_SIMULATION === "true") {
+function getMimeTypeFromDataUrl(dataUrl: string): string {
+  const match = dataUrl.match(/^data:([^;]+);base64,/);
+  return match?.[1] || "image/png";
+}
+
+async function enrichImageReferencesWithVision(
+  references: ImageReference[],
+  issue: any,
+  opencodeClient?: OpencodeClient
+): Promise<void> {
+  if (!opencodeClient || references.length === 0 || process.env.IS_SIMULATION === "true") {
     return;
   }
+
+  const maxImageBytes = getVisionMaxImageBytes();
 
   for (const reference of references) {
     if (reference.visionSummary) continue;
 
     try {
-      const dataUrl = await downloadImageAsDataUrl(reference, issue, visionConfig.maxImageBytes);
+      const dataUrl = await downloadImageAsDataUrl(reference, issue, maxImageBytes);
       if (!dataUrl) continue;
 
-      const visionSummary = await analyzeImageWithOpenAi(reference, dataUrl, visionConfig.apiKey, visionConfig.model);
+      const visionSummary = await analyzeImageWithOpencode(reference, dataUrl, opencodeClient);
       if (visionSummary) {
         reference.visionSummary = visionSummary;
       }
@@ -649,7 +643,7 @@ async function runAnalysis(projectId: string | number, issueIid: number, trigger
     .join("\n\n");
 
   const imageReferences = collectImageReferences(getIssueImageSources(issue, comments));
-  await enrichImageReferencesWithVision(imageReferences, issue);
+  await enrichImageReferencesWithVision(imageReferences, issue, opencodeClient);
 
   const promptText = `
 Here is the current GitLab issue for analysis:
@@ -738,7 +732,7 @@ ${proposedDescription}
  * Handles the '@dev-assist publish' command.
  * Updates the issue description and title, and deletes the conversation history.
  */
-async function runPublishCommand(projectId: string | number, issueIid: number, res?: Response) {
+async function runPublishCommand(projectId: string | number, issueIid: number, res?: Response, opencodeClient?: OpencodeClient) {
   logger.info(`[WEBHOOK] Executing publish command for Issue #${issueIid}...`);
 
   // 1. Fetch issue details and comments
@@ -779,7 +773,7 @@ async function runPublishCommand(projectId: string | number, issueIid: number, r
 
   const newTitle = titleMatch[1].trim();
   const imageReferences = collectImageReferences(getIssueImageSources(issue, comments, proposalComment.id));
-  await enrichImageReferencesWithVision(imageReferences, issue);
+  await enrichImageReferencesWithVision(imageReferences, issue, opencodeClient);
   const newDescription = appendMissingImageReferences(descMatch[1].trim(), imageReferences);
 
   // 4. Update the issue
