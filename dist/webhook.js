@@ -195,6 +195,104 @@ function cleanQuestions(questions) {
     const result = cleanedLines.join("\n").trim();
     return result || cleaned;
 }
+const IMAGE_URL_EXTENSION = /\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|tiff?)(?:[?#].*)?$/i;
+function stripTrailingUrlPunctuation(value) {
+    return value.replace(/[.,;:!?]+$/g, "");
+}
+function getMarkdownTargetUrl(target) {
+    const trimmed = target.trim();
+    if (trimmed.startsWith("<")) {
+        const closingIndex = trimmed.indexOf(">");
+        if (closingIndex > 1) {
+            return trimmed.slice(1, closingIndex).trim();
+        }
+    }
+    const firstToken = trimmed.match(/^\S+/)?.[0] || trimmed;
+    return firstToken.replace(/^<|>$/g, "");
+}
+function looksLikeImageUrl(url) {
+    const cleanedUrl = stripTrailingUrlPunctuation(url).split("#")[0].split("?")[0];
+    return IMAGE_URL_EXTENSION.test(cleanedUrl);
+}
+function addImageReference(references, seenUrls, markdown, url) {
+    const cleanedUrl = stripTrailingUrlPunctuation(url.trim());
+    if (!cleanedUrl)
+        return;
+    const normalizedUrl = cleanedUrl.toLowerCase();
+    if (seenUrls.has(normalizedUrl))
+        return;
+    seenUrls.add(normalizedUrl);
+    references.push({
+        url: cleanedUrl,
+        markdown: markdown.trim()
+    });
+}
+function extractImageReferencesFromText(text, references, seenUrls) {
+    const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    for (const match of text.matchAll(markdownImageRegex)) {
+        const url = getMarkdownTargetUrl(match[2]);
+        addImageReference(references, seenUrls, match[0], url);
+    }
+    const htmlImageRegex = /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi;
+    for (const match of text.matchAll(htmlImageRegex)) {
+        const url = match[1];
+        addImageReference(references, seenUrls, `![Image](${url})`, url);
+    }
+    const markdownLinkRegex = /(^|[^!])\[([^\]]+)\]\(([^)]+)\)/g;
+    for (const match of text.matchAll(markdownLinkRegex)) {
+        const markdown = match[0].slice(match[1].length);
+        const url = getMarkdownTargetUrl(match[3]);
+        if (looksLikeImageUrl(url)) {
+            addImageReference(references, seenUrls, markdown, url);
+        }
+    }
+    const directUrlRegex = /\bhttps?:\/\/[^\s<>()"']+/gi;
+    for (const match of text.matchAll(directUrlRegex)) {
+        const url = stripTrailingUrlPunctuation(match[0]);
+        if (looksLikeImageUrl(url)) {
+            addImageReference(references, seenUrls, `![Image](${url})`, url);
+        }
+    }
+    const gitlabUploadRegex = /\/uploads\/[^\s<>()"']+/gi;
+    for (const match of text.matchAll(gitlabUploadRegex)) {
+        const url = stripTrailingUrlPunctuation(match[0]);
+        if (looksLikeImageUrl(url)) {
+            addImageReference(references, seenUrls, `![Image](${url})`, url);
+        }
+    }
+}
+function collectImageReferences(...texts) {
+    const references = [];
+    const seenUrls = new Set();
+    for (const text of texts) {
+        if (!text)
+            continue;
+        extractImageReferencesFromText(text, references, seenUrls);
+    }
+    return references;
+}
+function formatImageReferencesForPrompt(references) {
+    if (references.length === 0)
+        return "(No image references found)";
+    return references.map((reference, index) => `${index + 1}. ${reference.markdown}`).join("\n");
+}
+function appendMissingImageReferences(description, references) {
+    const trimmedDescription = description.trim();
+    const missingReferences = references.filter(reference => {
+        return !trimmedDescription.includes(reference.url) && !trimmedDescription.includes(reference.markdown);
+    });
+    if (missingReferences.length === 0)
+        return trimmedDescription;
+    const hasImageSection = /^###\s+(?:Images|Screenshots|Images \/ Screenshots|Screenshots \/ Images|Referenced Images)\s*$/im.test(trimmedDescription);
+    const imageMarkdown = missingReferences.map(reference => reference.markdown).join("\n\n");
+    if (!trimmedDescription) {
+        return `### Images / Screenshots\n${imageMarkdown}`;
+    }
+    if (hasImageSection) {
+        return `${trimmedDescription}\n\n${imageMarkdown}`;
+    }
+    return `${trimmedDescription}\n\n### Images / Screenshots\n${imageMarkdown}`;
+}
 /**
  * Runs the Opencode agent to analyze the issue context and write a proposal or ask questions.
  */
@@ -208,6 +306,10 @@ async function runAnalysis(projectId, issueIid, triggeringUser, opencodeClient) 
         .filter(c => !c.system) // Skip system notes
         .map(c => `@${c.author.username}: ${c.body}`)
         .join("\n\n");
+    const userProvidedCommentBodies = comments
+        .filter(c => !c.system && (!botUsername || c.author?.username !== botUsername))
+        .map(c => c.body || "");
+    const imageReferences = collectImageReferences(issue.description, ...userProvidedCommentBodies);
     const promptText = `
 Here is the current GitLab issue for analysis:
 
@@ -218,7 +320,11 @@ ${issue.description}
 Previous comments / discussion history:
 ${commentContext || "(No comments yet)"}
 
+Image references posted in the issue or discussion:
+${formatImageReferencesForPrompt(imageReferences)}
+
 Please check if there is enough context for developers (reproduction steps, logs, acceptance criteria).
+If image references are listed, include every one of them exactly as Markdown in proposedDescription under a "### Images / Screenshots" section so they remain visible after the discussion comments are cleaned up.
 Respond exactly in the specified JSON format.
 `;
     logger.info(`[AGENT] Starting Opencode session for Issue #${issueIid}...`);
@@ -254,6 +360,7 @@ Respond exactly in the specified JSON format.
         }
         else {
             logger.info(`[AGENT] Agent generated proposal for Issue #${issueIid}. Posting proposal comment...`);
+            const proposedDescription = appendMissingImageReferences(parsed.proposedDescription, imageReferences);
             const proposalBody = `### 🚀 Proposal from @dev-assist
 I have gathered all the necessary details. Here is my structured proposal for the ticket:
 
@@ -264,7 +371,7 @@ ${parsed.proposedTitle}
 
 **Proposed Description:**
 <!-- proposed-description-start -->
-${parsed.proposedDescription}
+${proposedDescription}
 <!-- proposed-description-end -->
 
 ---
@@ -285,7 +392,8 @@ ${parsed.proposedDescription}
  */
 async function runPublishCommand(projectId, issueIid, res) {
     logger.info(`[WEBHOOK] Executing publish command for Issue #${issueIid}...`);
-    // 1. Fetch comments
+    // 1. Fetch issue details and comments
+    const issue = await getIssue(projectId, issueIid);
     const comments = await getIssueComments(projectId, issueIid);
     // 2. Find the latest proposal comment posted by the bot
     let proposalComment = null;
@@ -317,7 +425,11 @@ async function runPublishCommand(projectId, issueIid, res) {
         return;
     }
     const newTitle = titleMatch[1].trim();
-    const newDescription = descMatch[1].trim();
+    const userProvidedCommentBodies = comments
+        .filter(c => !c.system && c.id !== proposalComment.id && (!botUsername || c.author?.username !== botUsername))
+        .map(c => c.body || "");
+    const imageReferences = collectImageReferences(issue.description, ...userProvidedCommentBodies);
+    const newDescription = appendMissingImageReferences(descMatch[1].trim(), imageReferences);
     // 4. Update the issue
     logger.info(`[WEBHOOK] Updating title and description for Issue #${issueIid}...`);
     await updateIssue(projectId, issueIid, newTitle, newDescription);
