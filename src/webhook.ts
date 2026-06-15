@@ -236,6 +236,13 @@ function cleanQuestions(questions: string): string {
 type ImageReference = {
   url: string;
   markdown: string;
+  source: string;
+  context: string;
+};
+
+type ImageSource = {
+  text: string;
+  source: string;
 };
 
 const IMAGE_URL_EXTENSION = /\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|tiff?)(?:[?#].*)?$/i;
@@ -263,31 +270,96 @@ function looksLikeImageUrl(url: string): boolean {
   return IMAGE_URL_EXTENSION.test(cleanedUrl);
 }
 
-function addImageReference(references: ImageReference[], seenUrls: Set<string>, markdown: string, url: string) {
+function normalizeImageContext(value: string): string {
+  return value
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, " ")
+    .replace(/<img\b[^>]*>/gi, " ")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/\bhttps?:\/\/[^\s<>()"']+/gi, " ")
+    .replace(/\/uploads\/[^\s<>()"']+/gi, " ")
+    .replace(/@dev-assist(?:\s+publish)?/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateContext(value: string): string {
+  const maxLength = 280;
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function getImageContext(text: string, matchIndex: number, matchLength: number): string {
+  const lineStart = text.lastIndexOf("\n", matchIndex) + 1;
+  const nextLineBreak = text.indexOf("\n", matchIndex + matchLength);
+  const lineEnd = nextLineBreak === -1 ? text.length : nextLineBreak;
+
+  const line = text.slice(lineStart, lineEnd);
+  const matchStartInLine = matchIndex - lineStart;
+  const matchEndInLine = matchStartInLine + matchLength;
+  const sameLineContext = normalizeImageContext(`${line.slice(0, matchStartInLine)} ${line.slice(matchEndInLine)}`);
+
+  if (sameLineContext) {
+    return truncateContext(sameLineContext);
+  }
+
+  const previousLines = text
+    .slice(0, lineStart)
+    .split("\n")
+    .map(normalizeImageContext)
+    .filter(Boolean);
+  const nextLines = text
+    .slice(lineEnd)
+    .split("\n")
+    .map(normalizeImageContext)
+    .filter(Boolean);
+
+  return truncateContext([previousLines[previousLines.length - 1], nextLines[0]].filter(Boolean).join(" "));
+}
+
+function addImageReference(
+  references: ImageReference[],
+  seenReferences: Map<string, ImageReference>,
+  markdown: string,
+  url: string,
+  source: string,
+  context: string
+) {
   const cleanedUrl = stripTrailingUrlPunctuation(url.trim());
   if (!cleanedUrl) return;
 
   const normalizedUrl = cleanedUrl.toLowerCase();
-  if (seenUrls.has(normalizedUrl)) return;
+  const existingReference = seenReferences.get(normalizedUrl);
+  if (existingReference) {
+    if (!existingReference.context && context) {
+      existingReference.context = context;
+      existingReference.source = source;
+    }
+    return;
+  }
 
-  seenUrls.add(normalizedUrl);
-  references.push({
+  const reference = {
     url: cleanedUrl,
-    markdown: markdown.trim()
-  });
+    markdown: markdown.trim(),
+    source,
+    context
+  };
+  seenReferences.set(normalizedUrl, reference);
+  references.push(reference);
 }
 
-function extractImageReferencesFromText(text: string, references: ImageReference[], seenUrls: Set<string>) {
+function extractImageReferencesFromText(imageSource: ImageSource, references: ImageReference[], seenReferences: Map<string, ImageReference>) {
+  const { text, source } = imageSource;
+
   const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
   for (const match of text.matchAll(markdownImageRegex)) {
     const url = getMarkdownTargetUrl(match[2]);
-    addImageReference(references, seenUrls, match[0], url);
+    addImageReference(references, seenReferences, match[0], url, source, getImageContext(text, match.index || 0, match[0].length));
   }
 
   const htmlImageRegex = /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi;
   for (const match of text.matchAll(htmlImageRegex)) {
     const url = match[1];
-    addImageReference(references, seenUrls, `![Image](${url})`, url);
+    addImageReference(references, seenReferences, `![Image](${url})`, url, source, getImageContext(text, match.index || 0, match[0].length));
   }
 
   const markdownLinkRegex = /(^|[^!])\[([^\]]+)\]\(([^)]+)\)/g;
@@ -295,7 +367,7 @@ function extractImageReferencesFromText(text: string, references: ImageReference
     const markdown = match[0].slice(match[1].length);
     const url = getMarkdownTargetUrl(match[3]);
     if (looksLikeImageUrl(url)) {
-      addImageReference(references, seenUrls, markdown, url);
+      addImageReference(references, seenReferences, markdown, url, source, getImageContext(text, (match.index || 0) + match[1].length, markdown.length));
     }
   }
 
@@ -303,7 +375,7 @@ function extractImageReferencesFromText(text: string, references: ImageReference
   for (const match of text.matchAll(directUrlRegex)) {
     const url = stripTrailingUrlPunctuation(match[0]);
     if (looksLikeImageUrl(url)) {
-      addImageReference(references, seenUrls, `![Image](${url})`, url);
+      addImageReference(references, seenReferences, `![Image](${url})`, url, source, getImageContext(text, match.index || 0, match[0].length));
     }
   }
 
@@ -311,38 +383,62 @@ function extractImageReferencesFromText(text: string, references: ImageReference
   for (const match of text.matchAll(gitlabUploadRegex)) {
     const url = stripTrailingUrlPunctuation(match[0]);
     if (looksLikeImageUrl(url)) {
-      addImageReference(references, seenUrls, `![Image](${url})`, url);
+      addImageReference(references, seenReferences, `![Image](${url})`, url, source, getImageContext(text, match.index || 0, match[0].length));
     }
   }
 }
 
-function collectImageReferences(...texts: Array<string | null | undefined>): ImageReference[] {
+function collectImageReferences(sources: ImageSource[]): ImageReference[] {
   const references: ImageReference[] = [];
-  const seenUrls = new Set<string>();
+  const seenReferences = new Map<string, ImageReference>();
 
-  for (const text of texts) {
-    if (!text) continue;
-    extractImageReferencesFromText(text, references, seenUrls);
+  for (const source of sources) {
+    if (!source.text) continue;
+    extractImageReferencesFromText(source, references, seenReferences);
   }
 
   return references;
 }
 
+function getCommentImageSource(comment: any): ImageSource {
+  const username = comment.author?.username ? `@${comment.author.username}` : "unknown user";
+  return {
+    text: comment.body || "",
+    source: `Comment by ${username}`
+  };
+}
+
 function formatImageReferencesForPrompt(references: ImageReference[]): string {
   if (references.length === 0) return "(No image references found)";
-  return references.map((reference, index) => `${index + 1}. ${reference.markdown}`).join("\n");
+  return references
+    .map((reference, index) => {
+      const context = reference.context || "No surrounding context provided.";
+      return `${index + 1}. Source: ${reference.source}\n   Context: ${context}\n   Image: ${reference.markdown}`;
+    })
+    .join("\n");
+}
+
+function formatImageReferenceBlock(reference: ImageReference, index: number, includeImage: boolean): string {
+  const context = reference.context || "No surrounding context provided.";
+  const imageLine = includeImage ? reference.markdown : `- Image: [link](${reference.url})`;
+  return `#### Image ${index + 1}\n- Source: ${reference.source}\n- Context: ${context}\n${imageLine}`;
 }
 
 function appendMissingImageReferences(description: string, references: ImageReference[]): string {
   const trimmedDescription = description.trim();
-  const missingReferences = references.filter(reference => {
-    return !trimmedDescription.includes(reference.url) && !trimmedDescription.includes(reference.markdown);
-  });
+  const missingReferenceBlocks = references
+    .map((reference, index) => {
+      const hasImage = trimmedDescription.includes(reference.url) || trimmedDescription.includes(reference.markdown);
+      const hasSource = trimmedDescription.includes(reference.source);
+      if (hasImage && hasSource) return null;
+      return formatImageReferenceBlock(reference, index, !hasImage);
+    })
+    .filter((block): block is string => Boolean(block));
 
-  if (missingReferences.length === 0) return trimmedDescription;
+  if (missingReferenceBlocks.length === 0) return trimmedDescription;
 
   const hasImageSection = /^###\s+(?:Images|Screenshots|Images \/ Screenshots|Screenshots \/ Images|Referenced Images)\s*$/im.test(trimmedDescription);
-  const imageMarkdown = missingReferences.map(reference => reference.markdown).join("\n\n");
+  const imageMarkdown = missingReferenceBlocks.join("\n\n");
 
   if (!trimmedDescription) {
     return `### Images / Screenshots\n${imageMarkdown}`;
@@ -371,10 +467,13 @@ async function runAnalysis(projectId: string | number, issueIid: number, trigger
     .map(c => `@${c.author.username}: ${c.body}`)
     .join("\n\n");
 
-  const userProvidedCommentBodies = comments
+  const userProvidedImageSources = comments
     .filter(c => !c.system && (!botUsername || c.author?.username !== botUsername))
-    .map(c => c.body || "");
-  const imageReferences = collectImageReferences(issue.description, ...userProvidedCommentBodies);
+    .map(getCommentImageSource);
+  const imageReferences = collectImageReferences([
+    { text: issue.description || "", source: "Issue description" },
+    ...userProvidedImageSources
+  ]);
 
   const promptText = `
 Here is the current GitLab issue for analysis:
@@ -390,7 +489,7 @@ Image references posted in the issue or discussion:
 ${formatImageReferencesForPrompt(imageReferences)}
 
 Please check if there is enough context for developers (reproduction steps, logs, acceptance criteria).
-If image references are listed, include every one of them exactly as Markdown in proposedDescription under a "### Images / Screenshots" section so they remain visible after the discussion comments are cleaned up.
+If image references are listed, include every one under a "### Images / Screenshots" section with the source, the provided context, and the exact Markdown image/link so they remain understandable after the discussion comments are cleaned up.
 Respond exactly in the specified JSON format.
 `;
 
@@ -503,10 +602,13 @@ async function runPublishCommand(projectId: string | number, issueIid: number, r
   }
 
   const newTitle = titleMatch[1].trim();
-  const userProvidedCommentBodies = comments
+  const userProvidedImageSources = comments
     .filter(c => !c.system && c.id !== proposalComment.id && (!botUsername || c.author?.username !== botUsername))
-    .map(c => c.body || "");
-  const imageReferences = collectImageReferences(issue.description, ...userProvidedCommentBodies);
+    .map(getCommentImageSource);
+  const imageReferences = collectImageReferences([
+    { text: issue.description || "", source: "Issue description" },
+    ...userProvidedImageSources
+  ]);
   const newDescription = appendMissingImageReferences(descMatch[1].trim(), imageReferences);
 
   // 4. Update the issue
