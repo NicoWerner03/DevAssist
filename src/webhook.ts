@@ -11,10 +11,8 @@ import {
 import logger from "./logger.js";
 import crypto from "crypto";
 
-// Global cache for bot username
 let botUsername: string = "";
 
-// Helper to initialize the bot username
 export async function initBotUser() {
   try {
     botUsername = await getGitlabUser();
@@ -24,7 +22,6 @@ export async function initBotUser() {
   }
 }
 
-// Helper to clean markdown json blocks
 function parseAgentResponse(rawText: string): any {
   let cleaned = rawText.trim();
 
@@ -71,15 +68,12 @@ function verifyGitlabSignature(
   }
 }
 
-function isBotMessage(payload: any): boolean {
-  if (payload.object_kind === "note") {
-    const noteText = payload.object_attributes?.note || "";
-    return (
-      noteText.includes("Proposal from @dev-assist") ||
-      noteText.includes("thanks for opening this issue!")
-    );
-  }
-  return false;
+function mentionsDevAssist(text: string): boolean {
+  return text.toLowerCase().includes("@dev-assist");
+}
+
+function isPublishCommand(text: string): boolean {
+  return text.toLowerCase().includes("@dev-assist publish");
 }
 
 export async function handleGitlabWebhook(req: Request, res: Response, opencodeClient: OpencodeClient) {
@@ -111,12 +105,10 @@ export async function handleGitlabWebhook(req: Request, res: Response, opencodeC
 
   const eventUser = payload.user?.username;
 
-  // 1. Prevent infinite loops: ignore events triggered by the bot itself
+  // Prevent infinite loops: the bot should never react to its own issue or note events.
   if (eventUser && botUsername && eventUser === botUsername) {
-    if (isBotMessage(payload)) {
-      logger.info(`Ignored: Event triggered by bot @${botUsername} itself`);
-      return res.status(200).json({ message: "Ignored: Event triggered by bot itself" });
-    }
+    logger.info(`Ignored: Event triggered by bot @${botUsername} itself`);
+    return res.status(200).json({ message: "Ignored: Event triggered by bot itself" });
   }
 
   try {
@@ -132,10 +124,10 @@ export async function handleGitlabWebhook(req: Request, res: Response, opencodeC
       }
 
       // We process issue events (open or update) if @dev-assist is mentioned in title/description
-      const mentionsAssist = title.includes("@dev-assist") || description.includes("@dev-assist");
+      const mentionsAssist = mentionsDevAssist(title) || mentionsDevAssist(description);
       if ((action === "open" || action === "update") && mentionsAssist) {
         // Skip if this is a publish command (handled via note/comments normally, but check just in case)
-        if (description.includes("@dev-assist publish")) {
+        if (isPublishCommand(description)) {
           await runPublishCommand(projectId, issueIid, res, opencodeClient);
           return;
         }
@@ -158,8 +150,8 @@ export async function handleGitlabWebhook(req: Request, res: Response, opencodeC
       const projectId = payload.project?.id;
 
       if (noteableType === "Issue" && issueIid && projectId) {
-        if (noteText.includes("@dev-assist")) {
-          if (noteText.includes("@dev-assist publish")) {
+        if (mentionsDevAssist(noteText)) {
+          if (isPublishCommand(noteText)) {
             logger.info(`[WEBHOOK] Received publish command for Issue #${issueIid} in Project ${projectId}`);
             res.status(200).json({ message: "Publishing ticket..." });
 
@@ -446,11 +438,27 @@ function getIssueImageSources(issue: any, comments: any[], includeProposalCommen
   ];
 }
 
+function getProjectWebUrl(issue: any): string | null {
+  if (issue.project?.web_url) return issue.project.web_url;
+  if (process.env.GITLAB_PROJECT_URL) return process.env.GITLAB_PROJECT_URL;
+
+  const issueUrl = issue.web_url || "";
+  const match = issueUrl.match(/^(.+?)\/-\/issues\/\d+/);
+  return match?.[1] || null;
+}
+
 function resolveImageUrl(url: string, issue: any): string | null {
   if (/^https?:\/\//i.test(url)) return url;
 
-  const baseUrl = issue.web_url || issue.project?.web_url || process.env.GITLAB_BASE_URL;
-  if (!baseUrl) return null;
+  const projectWebUrl = getProjectWebUrl(issue);
+  if (projectWebUrl && url.startsWith("/uploads/")) {
+    return `${projectWebUrl.replace(/\/$/, "")}${url}`;
+  }
+
+  const baseUrl = projectWebUrl || issue.web_url || process.env.GITLAB_BASE_URL;
+  if (!baseUrl) {
+    return null;
+  }
 
   try {
     return new URL(url, baseUrl).href;
@@ -702,7 +710,7 @@ Respond exactly in the specified JSON format.
     } else {
       logger.info(`[AGENT] Agent generated proposal for Issue #${issueIid}. Posting proposal comment...`);
       const proposedDescription = appendMissingImageReferences(parsed.proposedDescription, imageReferences);
-      const proposalBody = `### 🚀 Proposal from @dev-assist
+      const proposalBody = `### Proposal from @dev-assist
 I have gathered all the necessary details. Here is my structured proposal for the ticket:
 
 **Proposed Title:**
@@ -784,7 +792,7 @@ async function runPublishCommand(projectId: string | number, issueIid: number, r
   logger.info(`[WEBHOOK] Cleaning up helper comments for Issue #${issueIid}...`);
   for (const comment of comments) {
     const isBotComment = comment.author?.username === botUsername;
-    const mentionsAssist = comment.body.includes("@dev-assist");
+    const mentionsAssist = mentionsDevAssist(comment.body || "");
 
     if (isBotComment || mentionsAssist) {
       logger.info(`[WEBHOOK] Deleting comment #${comment.id}...`);
