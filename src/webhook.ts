@@ -238,6 +238,7 @@ type ImageReference = {
   markdown: string;
   source: string;
   context: string;
+  visionSummary?: string;
 };
 
 type ImageSource = {
@@ -246,6 +247,8 @@ type ImageSource = {
 };
 
 const IMAGE_URL_EXTENSION = /\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|tiff?)(?:[?#].*)?$/i;
+const DEFAULT_OPENAI_VISION_MODEL = "gpt-5.4";
+const DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 function stripTrailingUrlPunctuation(value: string): string {
   return value.replace(/[.,;:!?]+$/g, "");
@@ -270,6 +273,20 @@ function looksLikeImageUrl(url: string): boolean {
   return IMAGE_URL_EXTENSION.test(cleanedUrl);
 }
 
+function getMimeTypeFromUrl(url: string): string {
+  const normalizedUrl = stripTrailingUrlPunctuation(url).split("#")[0].split("?")[0].toLowerCase();
+  if (normalizedUrl.endsWith(".jpg") || normalizedUrl.endsWith(".jpeg")) return "image/jpeg";
+  if (normalizedUrl.endsWith(".png")) return "image/png";
+  if (normalizedUrl.endsWith(".gif")) return "image/gif";
+  if (normalizedUrl.endsWith(".webp")) return "image/webp";
+  if (normalizedUrl.endsWith(".bmp")) return "image/bmp";
+  if (normalizedUrl.endsWith(".svg")) return "image/svg+xml";
+  if (normalizedUrl.endsWith(".heic")) return "image/heic";
+  if (normalizedUrl.endsWith(".heif")) return "image/heif";
+  if (normalizedUrl.endsWith(".tif") || normalizedUrl.endsWith(".tiff")) return "image/tiff";
+  return "image/png";
+}
+
 function normalizeImageContext(value: string): string {
   return value
     .replace(/!\[[^\]]*\]\([^)]+\)/g, " ")
@@ -286,6 +303,13 @@ function truncateContext(value: string): string {
   const maxLength = 280;
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function truncateVisionSummary(value: string): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const maxLength = 320;
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 function getImageContext(text: string, matchIndex: number, matchLength: number): string {
@@ -408,20 +432,176 @@ function getCommentImageSource(comment: any): ImageSource {
   };
 }
 
+function getIssueImageSources(issue: any, comments: any[], includeProposalCommentId?: number): ImageSource[] {
+  const userProvidedImageSources = comments
+    .filter(c => {
+      if (c.system) return false;
+      if (includeProposalCommentId && c.id === includeProposalCommentId) return false;
+      return !botUsername || c.author?.username !== botUsername;
+    })
+    .map(getCommentImageSource);
+
+  return [
+    { text: issue.description || "", source: "Issue description" },
+    ...userProvidedImageSources
+  ];
+}
+
+function resolveImageUrl(url: string, issue: any): string | null {
+  if (/^https?:\/\//i.test(url)) return url;
+
+  const baseUrl = issue.web_url || issue.project?.web_url || process.env.GITLAB_BASE_URL;
+  if (!baseUrl) return null;
+
+  try {
+    return new URL(url, baseUrl).href;
+  } catch {
+    return null;
+  }
+}
+
+function getOpenAiVisionConfig(): { apiKey: string; model: string; maxImageBytes: number } | null {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+
+  const parsedMaxBytes = Number.parseInt(process.env.OPENAI_VISION_MAX_IMAGE_BYTES || "", 10);
+
+  return {
+    apiKey,
+    model: process.env.OPENAI_VISION_MODEL || DEFAULT_OPENAI_VISION_MODEL,
+    maxImageBytes: Number.isFinite(parsedMaxBytes) && parsedMaxBytes > 0 ? parsedMaxBytes : DEFAULT_MAX_IMAGE_BYTES
+  };
+}
+
+function getGitlabImageFetchHeaders(): Record<string, string> {
+  const token = process.env.GITLAB_TOKEN || process.env.GITLAB_ACCESS_TOKEN || process.env.GL_TOKEN;
+  if (!token) return {};
+  return { "PRIVATE-TOKEN": token };
+}
+
+async function downloadImageAsDataUrl(reference: ImageReference, issue: any, maxImageBytes: number): Promise<string | null> {
+  const resolvedUrl = resolveImageUrl(reference.url, issue);
+  if (!resolvedUrl) {
+    logger.warn(`[VISION] Skipping image without resolvable URL: ${reference.url}`);
+    return null;
+  }
+
+  const response = await fetch(resolvedUrl, { headers: getGitlabImageFetchHeaders() });
+  if (!response.ok) {
+    throw new Error(`Failed to download image (${response.status} ${response.statusText}) from ${resolvedUrl}`);
+  }
+
+  const contentType = response.headers.get("content-type")?.split(";")[0].trim() || getMimeTypeFromUrl(reference.url);
+  if (!contentType.startsWith("image/") && !looksLikeImageUrl(reference.url)) {
+    throw new Error(`Downloaded resource is not an image: ${contentType}`);
+  }
+
+  const imageBuffer = Buffer.from(await response.arrayBuffer());
+  if (imageBuffer.byteLength > maxImageBytes) {
+    logger.warn(`[VISION] Skipping image larger than ${maxImageBytes} bytes: ${reference.url}`);
+    return null;
+  }
+
+  const mimeType = contentType.startsWith("image/") ? contentType : getMimeTypeFromUrl(reference.url);
+  return `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+}
+
+function extractOpenAiOutputText(responseBody: any): string {
+  if (typeof responseBody.output_text === "string") {
+    return responseBody.output_text.trim();
+  }
+
+  const textParts: string[] = [];
+  for (const output of responseBody.output || []) {
+    for (const content of output.content || []) {
+      if (typeof content.text === "string") {
+        textParts.push(content.text);
+      }
+    }
+  }
+
+  return textParts.join("\n").trim();
+}
+
+async function analyzeImageWithOpenAi(reference: ImageReference, dataUrl: string, apiKey: string, model: string): Promise<string | null> {
+  const prompt = [
+    "Analyze this screenshot or image for a software development ticket.",
+    "Return one concise English sentence that captures the visible UI state, error message, log, or artifact relevant to debugging.",
+    "Do not invent details that are not visible.",
+    `Source: ${reference.source}`,
+    `User-provided context: ${reference.context || "No surrounding context provided."}`
+  ].join("\n");
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: prompt },
+            { type: "input_image", image_url: dataUrl, detail: "original" }
+          ]
+        }
+      ],
+      max_output_tokens: 120
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI vision request failed (${response.status} ${response.statusText}): ${errorText.slice(0, 500)}`);
+  }
+
+  const responseBody = await response.json();
+  const outputText = extractOpenAiOutputText(responseBody);
+  return outputText ? truncateVisionSummary(outputText) : null;
+}
+
+async function enrichImageReferencesWithVision(references: ImageReference[], issue: any): Promise<void> {
+  const visionConfig = getOpenAiVisionConfig();
+  if (!visionConfig || references.length === 0 || process.env.IS_SIMULATION === "true") {
+    return;
+  }
+
+  for (const reference of references) {
+    if (reference.visionSummary) continue;
+
+    try {
+      const dataUrl = await downloadImageAsDataUrl(reference, issue, visionConfig.maxImageBytes);
+      if (!dataUrl) continue;
+
+      const visionSummary = await analyzeImageWithOpenAi(reference, dataUrl, visionConfig.apiKey, visionConfig.model);
+      if (visionSummary) {
+        reference.visionSummary = visionSummary;
+      }
+    } catch (error) {
+      logger.warn(`[VISION] Failed to analyze image ${reference.url}: ` + (error as Error).message);
+    }
+  }
+}
+
 function formatImageReferencesForPrompt(references: ImageReference[]): string {
   if (references.length === 0) return "(No image references found)";
   return references
     .map((reference, index) => {
       const context = reference.context || "No surrounding context provided.";
-      return `${index + 1}. Source: ${reference.source}\n   Context: ${context}\n   Image: ${reference.markdown}`;
+      const visionSummary = reference.visionSummary ? `\n   Visual summary: ${reference.visionSummary}` : "";
+      return `${index + 1}. Source: ${reference.source}\n   Context: ${context}${visionSummary}\n   Image: ${reference.markdown}`;
     })
     .join("\n");
 }
 
 function formatImageReferenceBlock(reference: ImageReference, index: number, includeImage: boolean): string {
   const context = reference.context || "No surrounding context provided.";
+  const visionSummary = reference.visionSummary ? `\n- Visual summary: ${reference.visionSummary}` : "";
   const imageLine = includeImage ? reference.markdown : `- Image: [link](${reference.url})`;
-  return `#### Image ${index + 1}\n- Source: ${reference.source}\n- Context: ${context}\n${imageLine}`;
+  return `#### Image ${index + 1}\n- Source: ${reference.source}\n- Context: ${context}${visionSummary}\n${imageLine}`;
 }
 
 function appendMissingImageReferences(description: string, references: ImageReference[]): string {
@@ -430,7 +610,8 @@ function appendMissingImageReferences(description: string, references: ImageRefe
     .map((reference, index) => {
       const hasImage = trimmedDescription.includes(reference.url) || trimmedDescription.includes(reference.markdown);
       const hasSource = trimmedDescription.includes(reference.source);
-      if (hasImage && hasSource) return null;
+      const hasVisionSummary = !reference.visionSummary || trimmedDescription.includes(reference.visionSummary);
+      if (hasImage && hasSource && hasVisionSummary) return null;
       return formatImageReferenceBlock(reference, index, !hasImage);
     })
     .filter((block): block is string => Boolean(block));
@@ -467,13 +648,8 @@ async function runAnalysis(projectId: string | number, issueIid: number, trigger
     .map(c => `@${c.author.username}: ${c.body}`)
     .join("\n\n");
 
-  const userProvidedImageSources = comments
-    .filter(c => !c.system && (!botUsername || c.author?.username !== botUsername))
-    .map(getCommentImageSource);
-  const imageReferences = collectImageReferences([
-    { text: issue.description || "", source: "Issue description" },
-    ...userProvidedImageSources
-  ]);
+  const imageReferences = collectImageReferences(getIssueImageSources(issue, comments));
+  await enrichImageReferencesWithVision(imageReferences, issue);
 
   const promptText = `
 Here is the current GitLab issue for analysis:
@@ -489,7 +665,7 @@ Image references posted in the issue or discussion:
 ${formatImageReferencesForPrompt(imageReferences)}
 
 Please check if there is enough context for developers (reproduction steps, logs, acceptance criteria).
-If image references are listed, include every one under a "### Images / Screenshots" section with the source, the provided context, and the exact Markdown image/link so they remain understandable after the discussion comments are cleaned up.
+If image references are listed, include every one under a "### Images / Screenshots" section with the source, the provided context, the visual summary if present, and the exact Markdown image/link so they remain understandable after the discussion comments are cleaned up.
 Respond exactly in the specified JSON format.
 `;
 
@@ -602,13 +778,8 @@ async function runPublishCommand(projectId: string | number, issueIid: number, r
   }
 
   const newTitle = titleMatch[1].trim();
-  const userProvidedImageSources = comments
-    .filter(c => !c.system && c.id !== proposalComment.id && (!botUsername || c.author?.username !== botUsername))
-    .map(getCommentImageSource);
-  const imageReferences = collectImageReferences([
-    { text: issue.description || "", source: "Issue description" },
-    ...userProvidedImageSources
-  ]);
+  const imageReferences = collectImageReferences(getIssueImageSources(issue, comments, proposalComment.id));
+  await enrichImageReferencesWithVision(imageReferences, issue);
   const newDescription = appendMissingImageReferences(descMatch[1].trim(), imageReferences);
 
   // 4. Update the issue
