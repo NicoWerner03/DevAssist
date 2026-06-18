@@ -1,4 +1,4 @@
-import { ImageReference, ImageSource } from "./types.js";
+import type { GitlabComment, GitlabIssue, ImageReference, ImageSource } from "./types.js";
 
 const IMAGE_URL_EXTENSION = /\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|tiff?)(?:[?#].*)?$/i;
 
@@ -173,7 +173,7 @@ export function collectImageReferences(sources: ImageSource[]): ImageReference[]
   return references;
 }
 
-function getCommentImageSource(comment: any): ImageSource {
+function getCommentImageSource(comment: GitlabComment): ImageSource {
   const username = comment.author?.username ? `@${comment.author.username}` : "unknown user";
   return {
     text: comment.body || "",
@@ -182,8 +182,8 @@ function getCommentImageSource(comment: any): ImageSource {
 }
 
 export function getIssueImageSources(
-  issue: any,
-  comments: any[],
+  issue: Pick<GitlabIssue, "description">,
+  comments: GitlabComment[],
   botUsername: string,
   includeProposalCommentId?: number
 ): ImageSource[] {

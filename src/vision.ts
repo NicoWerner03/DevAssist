@@ -1,7 +1,7 @@
 import type { OpencodeClient } from "@opencode-ai/sdk";
 import { getMimeTypeFromUrl, looksLikeImageUrl } from "./image-references.js";
 import logger from "./logger.js";
-import type { ImageReference } from "./types.js";
+import type { GitlabIssue, ImageReference } from "./types.js";
 
 const DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
@@ -12,7 +12,7 @@ function truncateVisionSummary(value: string): string {
   return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
-function getProjectWebUrl(issue: any): string | null {
+function getProjectWebUrl(issue: GitlabIssue): string | null {
   if (issue.project?.web_url) return issue.project.web_url;
   if (process.env.GITLAB_PROJECT_URL) return process.env.GITLAB_PROJECT_URL;
 
@@ -21,7 +21,7 @@ function getProjectWebUrl(issue: any): string | null {
   return match?.[1] || null;
 }
 
-function resolveImageUrl(url: string, issue: any): string | null {
+function resolveImageUrl(url: string, issue: GitlabIssue): string | null {
   if (/^https?:\/\//i.test(url)) return url;
 
   const projectWebUrl = getProjectWebUrl(issue);
@@ -52,7 +52,11 @@ function getGitlabImageFetchHeaders(): Record<string, string> {
   return { "PRIVATE-TOKEN": token };
 }
 
-async function downloadImageAsDataUrl(reference: ImageReference, issue: any, maxImageBytes: number): Promise<string | null> {
+async function downloadImageAsDataUrl(
+  reference: ImageReference,
+  issue: GitlabIssue,
+  maxImageBytes: number
+): Promise<string | null> {
   const resolvedUrl = resolveImageUrl(reference.url, issue);
   if (!resolvedUrl) {
     logger.warn(`[VISION] Skipping image without resolvable URL: ${reference.url}`);
@@ -136,7 +140,7 @@ function getMimeTypeFromDataUrl(dataUrl: string): string {
 
 export async function enrichImageReferencesWithVision(
   references: ImageReference[],
-  issue: any,
+  issue: GitlabIssue,
   opencodeClient?: OpencodeClient
 ): Promise<void> {
   if (!opencodeClient || references.length === 0 || process.env.IS_SIMULATION === "true") {
