@@ -2,10 +2,11 @@ import { exec } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import logger from "./logger.js";
+import type { GitlabComment, GitlabIssue } from "./types.js";
 
 // Simulation State
-let mockComments: any[] = [];
-let mockIssue = {
+let mockComments: GitlabComment[] = [];
+let mockIssue: GitlabIssue = {
   title: "Bug during login with OAuth @dev-assist",
   description: "When I click on login, nothing happens. Please fix.",
   author: { username: "nico03werner" }
@@ -26,7 +27,11 @@ function runCommand(command: string): Promise<string> {
 }
 
 // Helper to run a glab api command with a JSON payload file
-async function runGlabWithPayload(endpoint: string, method: 'POST' | 'PUT', payload: any): Promise<string> {
+async function runGlabWithPayload(
+  endpoint: string,
+  method: "POST" | "PUT",
+  payload: Record<string, unknown>
+): Promise<string> {
   const tempFileName = `.tmp-glab-${Math.random().toString(36).substring(7)}.json`;
   const tempFilePath = path.join(process.cwd(), tempFileName);
   logger.info(`[GLAB] Creating temp payload file: ${tempFileName}`);
@@ -56,7 +61,7 @@ export async function getGitlabUser(): Promise<string> {
 
   try {
     const output = await runCommand("glab api user");
-    const user = JSON.parse(output);
+    const user = JSON.parse(output) as { username: string };
     return user.username;
   } catch (error) {
     logger.error("Error fetching GitLab user: " + (error as Error).message);
@@ -67,7 +72,7 @@ export async function getGitlabUser(): Promise<string> {
 /**
  * Fetches issue details.
  */
-export async function getIssue(projectId: string | number, issueIid: number): Promise<any> {
+export async function getIssue(projectId: string | number, issueIid: number): Promise<GitlabIssue> {
   if (process.env.IS_SIMULATION === "true") {
     return mockIssue;
   }
@@ -75,7 +80,7 @@ export async function getIssue(projectId: string | number, issueIid: number): Pr
   const endpoint = `projects/${encodeURIComponent(projectId)}/issues/${issueIid}`;
   try {
     const output = await runCommand(`glab api "${endpoint}"`);
-    return JSON.parse(output);
+    return JSON.parse(output) as GitlabIssue;
   } catch (error) {
     logger.error(`Error fetching issue ${issueIid} from project ${projectId}: ` + (error as Error).message);
     throw error;
@@ -85,7 +90,7 @@ export async function getIssue(projectId: string | number, issueIid: number): Pr
 /**
  * Fetches all comments (notes) for a specific issue.
  */
-export async function getIssueComments(projectId: string | number, issueIid: number): Promise<any[]> {
+export async function getIssueComments(projectId: string | number, issueIid: number): Promise<GitlabComment[]> {
   if (process.env.IS_SIMULATION === "true") {
     return mockComments;
   }
@@ -94,9 +99,15 @@ export async function getIssueComments(projectId: string | number, issueIid: num
   try {
     const output = await runCommand(`glab api "${endpoint}" --paginate`);
     try {
-      return JSON.parse(output);
+      return JSON.parse(output) as GitlabComment[];
     } catch {
-      return output.split("\n").filter(line => line.trim()).map(line => JSON.parse(line)).flat();
+      return output
+        .split("\n")
+        .filter(line => line.trim())
+        .flatMap(line => {
+          const parsed = JSON.parse(line) as GitlabComment | GitlabComment[];
+          return Array.isArray(parsed) ? parsed : [parsed];
+        });
     }
   } catch (error) {
     logger.error(`Error fetching comments for issue ${issueIid}: ` + (error as Error).message);
@@ -107,7 +118,7 @@ export async function getIssueComments(projectId: string | number, issueIid: num
 /**
  * Adds a new comment (note) to a specific issue.
  */
-export async function postIssueComment(projectId: string | number, issueIid: number, body: string): Promise<any> {
+export async function postIssueComment(projectId: string | number, issueIid: number, body: string): Promise<GitlabComment> {
   if (process.env.IS_SIMULATION === "true") {
     const newComment = {
       id: Math.floor(Math.random() * 10000),
@@ -122,7 +133,7 @@ export async function postIssueComment(projectId: string | number, issueIid: num
   const endpoint = `projects/${encodeURIComponent(projectId)}/issues/${issueIid}/notes`;
   try {
     const output = await runGlabWithPayload(endpoint, 'POST', { body });
-    return JSON.parse(output);
+    return JSON.parse(output) as GitlabComment;
   } catch (error) {
     logger.error(`Error posting comment to issue ${issueIid}: ` + (error as Error).message);
     throw error;
@@ -132,7 +143,12 @@ export async function postIssueComment(projectId: string | number, issueIid: num
 /**
  * Updates an issue's title and description.
  */
-export async function updateIssue(projectId: string | number, issueIid: number, title: string, description: string): Promise<any> {
+export async function updateIssue(
+  projectId: string | number,
+  issueIid: number,
+  title: string,
+  description: string
+): Promise<GitlabIssue> {
   if (process.env.IS_SIMULATION === "true") {
     mockIssue.title = title;
     mockIssue.description = description;
@@ -143,7 +159,7 @@ export async function updateIssue(projectId: string | number, issueIid: number, 
   const endpoint = `projects/${encodeURIComponent(projectId)}/issues/${issueIid}`;
   try {
     const output = await runGlabWithPayload(endpoint, 'PUT', { title, description });
-    return JSON.parse(output);
+    return JSON.parse(output) as GitlabIssue;
   } catch (error) {
     logger.error(`Error updating issue ${issueIid}: ` + (error as Error).message);
     throw error;
