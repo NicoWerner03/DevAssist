@@ -12,8 +12,7 @@ import { runPublishCommand } from "./publish-command.js";
 import { verifyGitlabSignature } from "./webhook-signature.js";
 import logger from "./logger.js";
 
-type GitlabWebhookRequest = Request & {
-  body: GitlabWebhookPayload;
+type GitlabWebhookRequest = Request<unknown, unknown, GitlabWebhookPayload> & {
   rawBody?: string;
 };
 
