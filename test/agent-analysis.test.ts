@@ -9,10 +9,33 @@ test("parseAgentResponse parses JSON wrapped in a json markdown block", () => {
   );
 });
 
-test("parseAgentResponse parses JSON wrapped in a generic markdown block", () => {
+test("parseAgentResponse parses proposal JSON wrapped in a generic markdown block", () => {
   assert.deepEqual(
-    parseAgentResponse("```\n{\"hasQuestions\":false,\"proposedTitle\":\"Title\"}\n```"),
-    { hasQuestions: false, proposedTitle: "Title" }
+    parseAgentResponse(
+      "```\n{\"hasQuestions\":false,\"proposedTitle\":\"Title\",\"proposedDescription\":\"Description\"}\n```"
+    ),
+    { hasQuestions: false, proposedTitle: "Title", proposedDescription: "Description" }
+  );
+});
+
+test("parseAgentResponse rejects question responses with non-string questions", () => {
+  assert.throws(
+    () => parseAgentResponse("{\"hasQuestions\":true,\"questions\":42}"),
+    /Invalid JSON returned by agent\./
+  );
+});
+
+test("parseAgentResponse rejects proposal responses missing proposedDescription", () => {
+  assert.throws(
+    () => parseAgentResponse("{\"hasQuestions\":false,\"proposedTitle\":\"Title\"}"),
+    /Invalid JSON returned by agent\./
+  );
+});
+
+test("parseAgentResponse rejects non-object JSON", () => {
+  assert.throws(
+    () => parseAgentResponse("\"not an object\""),
+    /Invalid JSON returned by agent\./
   );
 });
 

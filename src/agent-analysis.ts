@@ -11,6 +11,24 @@ import { joinTextParts } from "./opencode-parts.js";
 import type { AgentQuestionResponse, AgentResponse, OpencodeResponsePart } from "./types.js";
 import { enrichImageReferencesWithVision } from "./vision.js";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isAgentResponse(value: unknown): value is AgentResponse {
+  if (!isRecord(value)) return false;
+
+  if (value.hasQuestions === true) {
+    return typeof value.questions === "string";
+  }
+
+  if (value.hasQuestions === false) {
+    return typeof value.proposedTitle === "string" && typeof value.proposedDescription === "string";
+  }
+
+  return false;
+}
+
 export function parseAgentResponse(rawText: string): AgentResponse {
   let cleaned = rawText.trim();
 
@@ -28,12 +46,20 @@ export function parseAgentResponse(rawText: string): AgentResponse {
     }
   }
 
+  let parsed: unknown;
   try {
-    return JSON.parse(cleaned.trim()) as AgentResponse;
+    parsed = JSON.parse(cleaned.trim());
   } catch (err) {
     logger.error("Failed to parse JSON response from agent: " + rawText);
     throw new Error("Invalid JSON returned by agent.");
   }
+
+  if (!isAgentResponse(parsed)) {
+    logger.error("Failed to parse JSON response from agent: " + rawText);
+    throw new Error("Invalid JSON returned by agent.");
+  }
+
+  return parsed;
 }
 
 export function isAgentQuestionResponse(response: AgentResponse): response is AgentQuestionResponse {
