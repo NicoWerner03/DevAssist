@@ -1,11 +1,29 @@
 import type { Request, Response } from "express";
 import type { OpencodeClient } from "@opencode-ai/sdk";
+import type {
+  GitlabIssueWebhookPayload,
+  GitlabNoteWebhookPayload,
+  GitlabWebhookPayload
+} from "./types.js";
 import { getGitlabUser } from "./gitlab.js";
 import { runAnalysis } from "./agent-analysis.js";
 import { isPublishCommand, mentionsDevAssist } from "./message-detection.js";
 import { runPublishCommand } from "./publish-command.js";
 import { verifyGitlabSignature } from "./webhook-signature.js";
 import logger from "./logger.js";
+
+type GitlabWebhookRequest = Request & {
+  body: GitlabWebhookPayload;
+  rawBody?: string;
+};
+
+function isIssueWebhookPayload(payload: GitlabWebhookPayload): payload is GitlabIssueWebhookPayload {
+  return payload.object_kind === "issue";
+}
+
+function isNoteWebhookPayload(payload: GitlabWebhookPayload): payload is GitlabNoteWebhookPayload {
+  return payload.object_kind === "note";
+}
 
 let botUsername: string = "";
 
@@ -18,14 +36,18 @@ export async function initBotUser() {
   }
 }
 
-export async function handleGitlabWebhook(req: Request, res: Response, opencodeClient: OpencodeClient) {
+export async function handleGitlabWebhook(
+  req: GitlabWebhookRequest,
+  res: Response,
+  opencodeClient: OpencodeClient
+) {
   const signingToken = process.env.GITLAB_WEBHOOK_SECRET;
   const signatureHeader = req.headers["webhook-signature"] as string | undefined;
   const webhookId = req.headers["webhook-id"] as string | undefined;
   const webhookTimestamp = req.headers["webhook-timestamp"] as string | undefined;
 
   if (signingToken && signatureHeader && webhookId && webhookTimestamp) {
-    const rawBody = (req as any).rawBody || JSON.stringify(req.body);
+    const rawBody = req.rawBody || JSON.stringify(req.body);
     const isValid = verifyGitlabSignature(webhookId, webhookTimestamp, rawBody, signatureHeader, signingToken);
     
     if (!isValid) {
@@ -54,7 +76,7 @@ export async function handleGitlabWebhook(req: Request, res: Response, opencodeC
   }
 
   try {
-    if (payload.object_kind === "issue") {
+    if (isIssueWebhookPayload(payload)) {
       const action = payload.object_attributes?.action;
       const title = payload.object_attributes?.title || "";
       const description = payload.object_attributes?.description || "";
@@ -84,7 +106,7 @@ export async function handleGitlabWebhook(req: Request, res: Response, opencodeC
         return;
       }
 
-    } else if (payload.object_kind === "note") {
+    } else if (isNoteWebhookPayload(payload)) {
       // Note (comment) events
       const noteableType = payload.object_attributes?.noteable_type;
       const noteText = payload.object_attributes?.note || "";
@@ -116,8 +138,9 @@ export async function handleGitlabWebhook(req: Request, res: Response, opencodeC
 
     // Default response for unhandled events
     return res.status(200).json({ message: "Event ignored" });
-  } catch (error: any) {
-    logger.error("Webhook processing failed: " + error.message);
-    return res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    const message = (error as Error).message;
+    logger.error("Webhook processing failed: " + message);
+    return res.status(500).json({ error: message });
   }
 }
