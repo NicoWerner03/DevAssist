@@ -606,32 +606,102 @@ function formatImageReferenceBlock(reference: ImageReference, index: number, inc
   return `#### Image ${index + 1}\n- Source: ${reference.source}\n- Context: ${context}${visionSummary}\n${imageLine}`;
 }
 
+function descriptionIncludesImage(description: string, reference: ImageReference): boolean {
+  return description.includes(reference.url) || description.includes(reference.markdown);
+}
+
+function tokenizeContext(value: string): Set<string> {
+  const tokens = normalizeImageContext(value)
+    .toLowerCase()
+    .match(/[\p{L}\p{N}]+/gu) || [];
+
+  return new Set(tokens.filter(token => token.length > 2));
+}
+
+function findContextInsertionIndex(description: string, reference: ImageReference): number | null {
+  const referenceTokens = tokenizeContext(reference.context);
+  if (referenceTokens.size === 0) return null;
+
+  const lines = description.matchAll(/[^\r\n]+/g);
+  let bestMatch: { index: number; score: number; overlap: number } | null = null;
+
+  for (const line of lines) {
+    const lineText = line[0];
+    const lineTokens = tokenizeContext(lineText);
+    if (lineTokens.size === 0) continue;
+
+    let overlap = 0;
+    for (const token of lineTokens) {
+      if (referenceTokens.has(token)) overlap++;
+    }
+
+    if (overlap === 0) continue;
+
+    const coverage = overlap / Math.min(referenceTokens.size, lineTokens.size);
+    const score = overlap + coverage;
+    const insertionIndex = (line.index || 0) + lineText.length;
+
+    if (!bestMatch || score > bestMatch.score) {
+      bestMatch = { index: insertionIndex, score, overlap };
+    }
+  }
+
+  if (!bestMatch) return null;
+
+  const minimumOverlap = Math.min(3, referenceTokens.size);
+  return bestMatch.overlap >= minimumOverlap ? bestMatch.index : null;
+}
+
+function insertImageReferenceAt(description: string, insertionIndex: number, reference: ImageReference): string {
+  const before = description.slice(0, insertionIndex).trimEnd();
+  const after = description.slice(insertionIndex).trimStart();
+
+  if (!before) {
+    return after ? `${reference.markdown}\n\n${after}` : reference.markdown;
+  }
+
+  if (!after) {
+    return `${before}\n${reference.markdown}`;
+  }
+
+  return `${before}\n${reference.markdown}\n\n${after}`;
+}
+
 function appendMissingImageReferences(description: string, references: ImageReference[]): string {
-  const trimmedDescription = description.trim();
+  let updatedDescription = description.trim();
   const missingReferenceBlocks = references
     .map((reference, index) => {
-      const hasImage = trimmedDescription.includes(reference.url) || trimmedDescription.includes(reference.markdown);
-      const hasSource = trimmedDescription.includes(reference.source);
-      const hasVisionSummary = !reference.visionSummary || trimmedDescription.includes(reference.visionSummary);
+      const hasImage = descriptionIncludesImage(updatedDescription, reference);
+      const hasSource = updatedDescription.includes(reference.source);
+      const hasVisionSummary = !reference.visionSummary || updatedDescription.includes(reference.visionSummary);
       if (hasImage && hasSource && hasVisionSummary) return null;
+
+      if (!hasImage) {
+        const insertionIndex = findContextInsertionIndex(updatedDescription, reference);
+        if (insertionIndex !== null) {
+          updatedDescription = insertImageReferenceAt(updatedDescription, insertionIndex, reference);
+          return null;
+        }
+      }
+
       return formatImageReferenceBlock(reference, index, !hasImage);
     })
     .filter((block): block is string => Boolean(block));
 
-  if (missingReferenceBlocks.length === 0) return trimmedDescription;
+  if (missingReferenceBlocks.length === 0) return updatedDescription;
 
-  const hasImageSection = /^###\s+(?:Images|Screenshots|Images \/ Screenshots|Screenshots \/ Images|Referenced Images)\s*$/im.test(trimmedDescription);
+  const hasImageSection = /^###\s+(?:Images|Screenshots|Images \/ Screenshots|Screenshots \/ Images|Referenced Images)\s*$/im.test(updatedDescription);
   const imageMarkdown = missingReferenceBlocks.join("\n\n");
 
-  if (!trimmedDescription) {
+  if (!updatedDescription) {
     return `### Images / Screenshots\n${imageMarkdown}`;
   }
 
   if (hasImageSection) {
-    return `${trimmedDescription}\n\n${imageMarkdown}`;
+    return `${updatedDescription}\n\n${imageMarkdown}`;
   }
 
-  return `${trimmedDescription}\n\n### Images / Screenshots\n${imageMarkdown}`;
+  return `${updatedDescription}\n\n### Images / Screenshots\n${imageMarkdown}`;
 }
 
 /**
@@ -667,7 +737,7 @@ Image references posted in the issue or discussion:
 ${formatImageReferencesForPrompt(imageReferences)}
 
 Please check if there is enough context for developers (reproduction steps, logs, acceptance criteria).
-If image references are listed, include every one under a "### Images / Screenshots" section with the source, the provided context, the visual summary if present, and the exact Markdown image/link so they remain understandable after the discussion comments are cleaned up.
+If image references are listed, include every one in proposedDescription at the most relevant place in the ticket text, using the provided context and visual summary to choose the location. Use a "### Images / Screenshots" section only for images that do not have a natural place in the description, and keep the exact Markdown image/link so they remain visible after the discussion comments are cleaned up.
 Respond exactly in the specified JSON format.
 `;
 
