@@ -1,7 +1,7 @@
-import { OpencodeClient } from "@opencode-ai/sdk";
+import type { OpencodeClient } from "@opencode-ai/sdk";
 import { getMimeTypeFromUrl, looksLikeImageUrl } from "./image-references.js";
 import logger from "./logger.js";
-import { ImageReference } from "./types.js";
+import type { ImageReference } from "./types.js";
 
 const DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
