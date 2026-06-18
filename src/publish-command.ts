@@ -1,5 +1,6 @@
 import type { OpencodeClient } from "@opencode-ai/sdk";
 import type { Response } from "express";
+import type { GitlabComment } from "./types.js";
 import {
   deleteIssueComment,
   getIssue,
@@ -30,7 +31,7 @@ export async function runPublishCommand(
   const comments = await getIssueComments(projectId, issueIid);
 
   // 2. Find the latest proposal comment posted by the bot
-  let proposalComment: any = null;
+  let proposalComment: GitlabComment | null = null;
 
   for (let i = comments.length - 1; i >= 0; i--) {
     const comment = comments[i];
