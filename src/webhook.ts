@@ -8,6 +8,7 @@ import {
   updateIssue,
   deleteIssueComment
 } from "./gitlab.js";
+import { isPublishCommand, mentionsDevAssist } from "./message-detection.js";
 import logger from "./logger.js";
 import crypto from "crypto";
 
@@ -66,14 +67,6 @@ function verifyGitlabSignature(
     logger.error("Error verifying GitLab webhook signature: " + (err as Error).message);
     return false;
   }
-}
-
-function mentionsDevAssist(text: string): boolean {
-  return text.toLowerCase().includes("@dev-assist");
-}
-
-function isPublishCommand(text: string): boolean {
-  return text.toLowerCase().includes("@dev-assist publish");
 }
 
 export async function handleGitlabWebhook(req: Request, res: Response, opencodeClient: OpencodeClient) {
