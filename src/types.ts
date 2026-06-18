@@ -56,16 +56,18 @@ export type GitlabNoteWebhookPayload = {
   };
 };
 
+export type GitlabKnownWebhookPayload =
+  | GitlabIssueWebhookPayload
+  | GitlabNoteWebhookPayload;
+
+// Unknown GitLab webhook events are intentionally broad; use explicit type guards before reading issue/note-specific fields.
 export type GitlabOtherWebhookPayload = {
   object_kind?: string;
   user?: GitlabUser;
   [key: string]: unknown;
 };
 
-export type GitlabWebhookPayload =
-  | GitlabIssueWebhookPayload
-  | GitlabNoteWebhookPayload
-  | GitlabOtherWebhookPayload;
+export type GitlabWebhookPayload = GitlabKnownWebhookPayload | GitlabOtherWebhookPayload;
 
 export type AgentQuestionResponse = {
   hasQuestions: true;
