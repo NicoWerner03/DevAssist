@@ -1,13 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { OpencodeClient } from "@opencode-ai/sdk";
 
 test("publish restores issue screenshots next to their matching proposal description context", async () => {
-  process.env.IS_SIMULATION = "true";
-
   const gitlab = await import("../src/gitlab.js");
-  const webhook = await import("../src/webhook.js");
-
-  await webhook.initBotUser();
+  const webhook = await loadWebhookForSimulation();
 
   await gitlab.updateIssue(
     12345,
@@ -62,7 +59,7 @@ test("publish restores issue screenshots next to their matching proposal descrip
       }
     } as any,
     res as any,
-    {} as any
+    createOpencodeClientStub()
   );
 
   await waitFor(async () => {
@@ -84,6 +81,126 @@ test("publish restores issue screenshots next to their matching proposal descrip
   );
 });
 
+test("webhook rejects missing payload details", async () => {
+  const webhook = await loadWebhookForSimulation();
+
+  for (const body of [null, { user: { username: "reporter" } }]) {
+    const res = createResponse();
+
+    await webhook.handleGitlabWebhook(
+      createWebhookRequest(body) as any,
+      res as any,
+      createOpencodeClientStub()
+    );
+
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(res.body, { error: "Bad Request: Missing payload details" });
+  }
+});
+
+test("webhook rejects issue events missing issue IID or project ID", async () => {
+  const webhook = await loadWebhookForSimulation();
+  const invalidIssueBodies = [
+    {
+      object_kind: "issue",
+      user: { username: "reporter" },
+      project: { id: 12345 },
+      object_attributes: {
+        action: "open",
+        title: "@dev-assist needs context",
+        description: "Please check this."
+      }
+    },
+    {
+      object_kind: "issue",
+      user: { username: "reporter" },
+      object_attributes: {
+        action: "open",
+        title: "@dev-assist needs context",
+        description: "Please check this.",
+        iid: 1
+      }
+    }
+  ];
+
+  for (const body of invalidIssueBodies) {
+    const res = createResponse();
+
+    await webhook.handleGitlabWebhook(
+      createWebhookRequest(body) as any,
+      res as any,
+      createOpencodeClientStub()
+    );
+
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(res.body, { error: "Missing issue IID or Project ID" });
+  }
+});
+
+test("webhook ignores events triggered by the bot user", async () => {
+  const webhook = await loadWebhookForSimulation();
+  const res = createResponse();
+
+  await webhook.handleGitlabWebhook(
+    createWebhookRequest({
+      object_kind: "issue",
+      user: { username: "dev-assist-bot" },
+      project: { id: 12345 },
+      object_attributes: {
+        action: "open",
+        title: "@dev-assist needs context",
+        description: "Please check this.",
+        iid: 1
+      }
+    }) as any,
+    res as any,
+    createOpencodeClientStub()
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { message: "Ignored: Event triggered by bot itself" });
+});
+
+test("webhook ignores unhandled event kinds", async () => {
+  const webhook = await loadWebhookForSimulation();
+  const res = createResponse();
+
+  await webhook.handleGitlabWebhook(
+    createWebhookRequest({
+      object_kind: "merge_request",
+      user: { username: "reporter" }
+    }) as any,
+    res as any,
+    createOpencodeClientStub()
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { message: "Event ignored" });
+});
+
+test("webhook responds immediately to non-publish dev-assist note events", async () => {
+  const webhook = await loadWebhookForSimulation();
+  const res = createResponse();
+
+  await webhook.handleGitlabWebhook(
+    createWebhookRequest({
+      object_kind: "note",
+      user: { username: "reporter" },
+      project: { id: 12345 },
+      issue: { iid: 1 },
+      object_attributes: {
+        noteable_type: "Issue",
+        note: "@dev-assist can you review the latest comments?"
+      }
+    }) as any,
+    res as any,
+    createOpencodeClientStub()
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { message: "Analyzing discussion..." });
+});
+
 function createResponse() {
   return {
     statusCode: 200,
@@ -97,6 +214,39 @@ function createResponse() {
       return this;
     }
   };
+}
+
+async function loadWebhookForSimulation() {
+  process.env.IS_SIMULATION = "true";
+  const webhook = await import("../src/webhook.js");
+  await webhook.initBotUser();
+  return webhook;
+}
+
+function createWebhookRequest(body: unknown) {
+  return {
+    headers: {},
+    body
+  };
+}
+
+function createOpencodeClientStub(): OpencodeClient {
+  return {
+    session: {
+      create: async () => ({ data: { id: "test-session" } }),
+      prompt: async () => ({
+        data: {
+          parts: [
+            {
+              type: "text",
+              text: "{\"hasQuestions\":true,\"questions\":\"What happened?\"}"
+            }
+          ]
+        }
+      }),
+      delete: async () => ({ data: {} })
+    }
+  } as unknown as OpencodeClient;
 }
 
 async function waitFor(predicate: () => Promise<boolean>) {
