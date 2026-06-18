@@ -8,10 +8,10 @@ import {
 } from "./image-references.js";
 import logger from "./logger.js";
 import { joinTextParts } from "./opencode-parts.js";
-import type { OpencodeResponsePart } from "./types.js";
+import type { AgentQuestionResponse, AgentResponse, OpencodeResponsePart } from "./types.js";
 import { enrichImageReferencesWithVision } from "./vision.js";
 
-export function parseAgentResponse(rawText: string): any {
+export function parseAgentResponse(rawText: string): AgentResponse {
   let cleaned = rawText.trim();
 
   // Extract JSON from markdown code block if present
@@ -29,11 +29,15 @@ export function parseAgentResponse(rawText: string): any {
   }
 
   try {
-    return JSON.parse(cleaned.trim());
+    return JSON.parse(cleaned.trim()) as AgentResponse;
   } catch (err) {
     logger.error("Failed to parse JSON response from agent: " + rawText);
     throw new Error("Invalid JSON returned by agent.");
   }
+}
+
+export function isAgentQuestionResponse(response: AgentResponse): response is AgentQuestionResponse {
+  return response.hasQuestions;
 }
 
 /**
@@ -154,7 +158,7 @@ Respond exactly in the specified JSON format.
     const parsed = parseAgentResponse(replyText);
     logger.debug(`[AGENT] Parsed response object: ${JSON.stringify(parsed, null, 2)}`);
 
-    if (parsed.hasQuestions) {
+    if (isAgentQuestionResponse(parsed)) {
       logger.info(`[AGENT] Agent returned questions for Issue #${issueIid}. Posting comment...`);
       const cleanedQuestions = cleanQuestions(parsed.questions);
       const commentBody = `@${triggeringUser || issue.author.username} thanks for opening this issue! To help developers resolve it as quickly as possible, please provide the following details:\n\n${cleanedQuestions}`;

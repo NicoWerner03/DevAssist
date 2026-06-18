@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cleanQuestions, parseAgentResponse } from "../src/agent-analysis.js";
+import { cleanQuestions, isAgentQuestionResponse, parseAgentResponse } from "../src/agent-analysis.js";
 
 test("parseAgentResponse parses JSON wrapped in a json markdown block", () => {
   assert.deepEqual(
@@ -14,6 +14,20 @@ test("parseAgentResponse parses JSON wrapped in a generic markdown block", () =>
     parseAgentResponse("```\n{\"hasQuestions\":false,\"proposedTitle\":\"Title\"}\n```"),
     { hasQuestions: false, proposedTitle: "Title" }
   );
+});
+
+test("isAgentQuestionResponse identifies parsed question responses", () => {
+  const parsed = parseAgentResponse("```json\n{\"hasQuestions\":true,\"questions\":\"What happened?\"}\n```");
+
+  assert.equal(isAgentQuestionResponse(parsed), true);
+});
+
+test("isAgentQuestionResponse rejects parsed proposal responses", () => {
+  const parsed = parseAgentResponse(
+    "```json\n{\"hasQuestions\":false,\"proposedTitle\":\"Title\",\"proposedDescription\":\"Description\"}\n```"
+  );
+
+  assert.equal(isAgentQuestionResponse(parsed), false);
 });
 
 test("cleanQuestions strips greeting text before the first real question", () => {
