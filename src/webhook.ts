@@ -9,8 +9,8 @@ import {
   deleteIssueComment
 } from "./gitlab.js";
 import { isPublishCommand, mentionsDevAssist } from "./message-detection.js";
+import { verifyGitlabSignature } from "./webhook-signature.js";
 import logger from "./logger.js";
-import crypto from "crypto";
 
 let botUsername: string = "";
 
@@ -45,27 +45,6 @@ function parseAgentResponse(rawText: string): any {
   } catch (err) {
     logger.error("Failed to parse JSON response from agent: " + rawText);
     throw new Error("Invalid JSON returned by agent.");
-  }
-}
-
-function verifyGitlabSignature(
-  id: string,
-  timestamp: string,
-  rawBody: string,
-  signatureHeader: string,
-  signingToken: string
-): boolean {
-  try {
-    const message = `${id}.${timestamp}.${rawBody}`;
-    const key = Buffer.from(signingToken.replace("whsec_", ""), "base64");
-    const hmac = crypto.createHmac("sha256", key);
-    hmac.update(message);
-    const computedSignature = hmac.digest("base64");
-    const expectedSignature = `v1,${computedSignature}`;
-    return crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expectedSignature));
-  } catch (err) {
-    logger.error("Error verifying GitLab webhook signature: " + (err as Error).message);
-    return false;
   }
 }
 
