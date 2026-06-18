@@ -7,6 +7,8 @@ import {
   getIssueImageSources
 } from "./image-references.js";
 import logger from "./logger.js";
+import { joinTextParts } from "./opencode-parts.js";
+import type { OpencodeResponsePart } from "./types.js";
 import { enrichImageReferencesWithVision } from "./vision.js";
 
 export function parseAgentResponse(rawText: string): any {
@@ -146,8 +148,7 @@ Respond exactly in the specified JSON format.
       throw new Error("Failed to get response from Opencode session: no parts returned.");
     }
 
-    const textParts = promptRes.data.parts.filter(p => p.type === 'text');
-    const replyText = textParts.map(p => (p as any).text).join('\n');
+    const replyText = joinTextParts(promptRes.data.parts as OpencodeResponsePart[]);
     logger.info(`[AGENT] Received reply from Opencode:\n${replyText}`);
 
     const parsed = parseAgentResponse(replyText);

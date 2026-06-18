@@ -1,7 +1,8 @@
 import type { OpencodeClient } from "@opencode-ai/sdk";
 import { getMimeTypeFromUrl, looksLikeImageUrl } from "./image-references.js";
 import logger from "./logger.js";
-import type { GitlabIssue, ImageReference } from "./types.js";
+import { joinTextParts } from "./opencode-parts.js";
+import type { GitlabIssue, ImageReference, OpencodeResponsePart } from "./types.js";
 
 const DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
@@ -123,8 +124,7 @@ async function analyzeImageWithOpencode(
       throw new Error("Failed to get response from Opencode vision session: no parts returned.");
     }
 
-    const textParts = promptRes.data.parts.filter(p => p.type === "text");
-    const outputText = textParts.map(p => (p as any).text).join("\n").trim();
+    const outputText = joinTextParts(promptRes.data.parts as OpencodeResponsePart[]).trim();
     return outputText ? truncateVisionSummary(outputText) : null;
   } finally {
     await opencodeClient.session.delete({ path: { id: sessionId } }).catch(err => {
