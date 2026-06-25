@@ -36,10 +36,10 @@
 12. Inayat, I., Salim, S. S., Marczak, S., Daneva, M., & Shamshirband, S. (2015). A systematic literature review on agile requirements engineering practices and challenges. Computers in Human Behavior.
     <https://doi.org/10.1016/j.chb.2014.10.046>
 
-13. ISO/IEC/IEEE. (2018). ISO/IEC/IEEE 29148:2018 - Systems and software engineering - Life cycle processes - Requirements engineering.
+13. ISO/IEC/IEEE. (2018). ISO/IEC/IEEE 29148:2018 - Systems and software engineering - Life cycle processes - Requirements engineering. Öffentliche Katalogseite.
     <https://www.iso.org/standard/72089.html>
 
-14. ISO/IEC. (2023). ISO/IEC 25010 - Systems and software engineering - Systems and software Quality Requirements and Evaluation.
+14. ISO/IEC. (2023). ISO/IEC 25010 - Systems and software engineering - Systems and software Quality Requirements and Evaluation. Öffentliche Katalogseite.
     <https://www.iso.org/standard/78176.html>
 
 15. Vaswani, A., et al. (2017). Attention Is All You Need. NeurIPS 2017.
@@ -75,11 +75,11 @@
 25. Huang, L., et al. (2023/2025). A Survey on Hallucination in Large Language Models: Principles, Taxonomy, Challenges, and Open Questions.
     <https://arxiv.org/abs/2311.05232>
 
-26. NIST. (2024). Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile. NIST AI 600-1.
+26. National Institute of Standards and Technology (NIST). (2024). Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile. NIST AI 600-1.
     <https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf>
 
-27. OWASP. (2025). OWASP Top 10 for Large Language Model Applications.
-    <https://owasp.org/www-project-top-10-for-large-language-model-applications/>
+27. OWASP. (2025a). LLM01:2025 Prompt Injection. OWASP Top 10 for Large Language Model Applications.
+    <https://genai.owasp.org/llmrisk/llm01-prompt-injection/>
 
 28. Bass, L., Clements, P., & Kazman, R. (2021). Software Architecture in Practice. 4th ed. Addison-Wesley.
     <https://www.sei.cmu.edu/library/software-architecture-in-practice-fourth-edition/>
@@ -93,7 +93,7 @@
 31. Easterbrook, S., Singer, J., Storey, M.-A., & Damian, D. (2008). Selecting Empirical Methods for Software Engineering Research.
     <https://doi.org/10.1007/978-1-84800-044-5_11>
 
-32. GitLab. GitLab Webhooks Documentation.
+32. GitLab. GitLab Webhooks Documentation: Webhook events and signing tokens.
     <https://docs.gitlab.com/user/project/integrations/webhooks/>
 
 33. GitLab. GitLab Issues API.
@@ -131,3 +131,21 @@
 
 44. Zod. Official Documentation.
     <https://zod.dev/>
+
+45. GitLab. Webhook Events Documentation.
+    <https://docs.gitlab.com/user/project/integrations/webhook_events/>
+
+46. OpenCode. Agents Documentation.
+    <https://opencode.ai/docs/agents/>
+
+47. OpenCode. SDK Documentation.
+    <https://opencode.ai/docs/sdk/>
+
+48. OpenCode. Tools Documentation.
+    <https://opencode.ai/docs/tools/>
+
+49. Node.js. HTTP Documentation.
+    <https://nodejs.org/api/http.html>
+
+50. OWASP. (2025b). LLM06:2025 Excessive Agency. OWASP Top 10 for Large Language Model Applications.
+    <https://genai.owasp.org/llmrisk/llm062025-excessive-agency/>
