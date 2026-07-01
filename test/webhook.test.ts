@@ -206,6 +206,84 @@ test("webhook responds immediately to non-publish dev-assist note events", async
   assert.deepEqual(res.body, { message: "Analyzing discussion..." });
 });
 
+test("webhook refreshes the repository summary when a merge request is merged", async () => {
+  const webhook = await loadWebhookForSimulation();
+  const res = createResponse();
+
+  await webhook.handleGitlabWebhook(
+    createWebhookRequest({
+      object_kind: "merge_request",
+      user: { username: "reporter" },
+      project: { id: 12345 },
+      object_attributes: { action: "merge", state: "merged", iid: 7 }
+    }) as any,
+    res as any,
+    createOpencodeClientStub()
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { message: "Refreshing repository summary..." });
+});
+
+test("webhook ignores merge request events that are not merges", async () => {
+  const webhook = await loadWebhookForSimulation();
+  const res = createResponse();
+
+  await webhook.handleGitlabWebhook(
+    createWebhookRequest({
+      object_kind: "merge_request",
+      user: { username: "reporter" },
+      project: { id: 12345 },
+      object_attributes: { action: "open", state: "opened", iid: 7 }
+    }) as any,
+    res as any,
+    createOpencodeClientStub()
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { message: "Event ignored" });
+});
+
+test("issue analysis attaches the cached repository summary to the agent prompt", async () => {
+  const webhook = await loadWebhookForSimulation();
+  const repoSummary = await import("../src/repo-summary.js");
+  repoSummary.setRepositorySummary("## Technology Stack\n- REPO_SUMMARY_MARKER");
+
+  let capturedPrompt = "";
+  const capturingClient = {
+    session: {
+      create: async () => ({ data: { id: "capture-session" } }),
+      prompt: async ({ body }: any) => {
+        capturedPrompt = body.parts.map((p: any) => p.text).join("\n");
+        return {
+          data: { parts: [{ type: "text", text: "{\"hasQuestions\":true,\"questions\":\"What happened?\"}" }] }
+        };
+      },
+      delete: async () => ({ data: {} })
+    }
+  } as unknown as OpencodeClient;
+
+  const res = createResponse();
+  await webhook.handleGitlabWebhook(
+    createWebhookRequest({
+      object_kind: "note",
+      user: { username: "reporter" },
+      project: { id: 12345 },
+      issue: { iid: 1 },
+      object_attributes: {
+        noteable_type: "Issue",
+        note: "@dev-assist can you review this?"
+      }
+    }) as any,
+    res as any,
+    capturingClient
+  );
+
+  await waitFor(async () => capturedPrompt.includes("REPO_SUMMARY_MARKER"));
+  assert.ok(capturedPrompt.includes("Repository summary"));
+  assert.ok(capturedPrompt.includes("REPO_SUMMARY_MARKER"));
+});
+
 function createResponse() {
   return {
     statusCode: 200,

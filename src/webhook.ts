@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import type { OpencodeClient } from "@opencode-ai/sdk";
 import type {
   GitlabIssueWebhookPayload,
+  GitlabMergeRequestWebhookPayload,
   GitlabNoteWebhookPayload,
   GitlabWebhookPayload
 } from "./types.js";
@@ -9,6 +10,7 @@ import { getGitlabUser } from "./gitlab.js";
 import { runAnalysis } from "./agent-analysis.js";
 import { isPublishCommand, mentionsDevAssist } from "./message-detection.js";
 import { runPublishCommand } from "./publish-command.js";
+import { refreshRepositorySummary } from "./repo-summary.js";
 import { verifyGitlabSignature } from "./webhook-signature.js";
 import logger from "./logger.js";
 
@@ -22,6 +24,10 @@ function isIssueWebhookPayload(payload: GitlabWebhookPayload): payload is Gitlab
 
 function isNoteWebhookPayload(payload: GitlabWebhookPayload): payload is GitlabNoteWebhookPayload {
   return payload.object_kind === "note";
+}
+
+function isMergeRequestWebhookPayload(payload: GitlabWebhookPayload): payload is GitlabMergeRequestWebhookPayload {
+  return payload.object_kind === "merge_request";
 }
 
 let botUsername: string = "";
@@ -132,6 +138,22 @@ export async function handleGitlabWebhook(
             return;
           }
         }
+      }
+    } else if (isMergeRequestWebhookPayload(payload)) {
+      // Regenerate the repository summary after a merge request is merged, so
+      // subsequent dev-assist requests reflect the updated codebase.
+      const action = payload.object_attributes?.action;
+      const state = payload.object_attributes?.state;
+      const isMerged = action === "merge" || state === "merged";
+
+      if (isMerged) {
+        logger.info(`[WEBHOOK] Merge request merged; refreshing repository summary.`);
+        res.status(200).json({ message: "Refreshing repository summary..." });
+
+        refreshRepositorySummary(opencodeClient).catch(err => {
+          logger.error(`[WEBHOOK] Error refreshing repository summary after merge: ` + err.message);
+        });
+        return;
       }
     }
 

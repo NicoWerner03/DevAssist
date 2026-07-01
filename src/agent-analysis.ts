@@ -8,6 +8,7 @@ import {
 } from "./image-references.js";
 import logger from "./logger.js";
 import { joinTextParts } from "./opencode-parts.js";
+import { formatRepositorySummaryForPrompt } from "./repo-summary.js";
 import type { AgentQuestionResponse, AgentResponse, OpencodeResponsePart } from "./types.js";
 import { enrichImageReferencesWithVision } from "./vision.js";
 
@@ -137,6 +138,9 @@ export async function runAnalysis(
   await enrichImageReferencesWithVision(imageReferences, issue, opencodeClient);
 
   const promptText = `
+Repository summary (for additional context about the codebase this issue belongs to):
+${formatRepositorySummaryForPrompt()}
+
 Here is the current GitLab issue for analysis:
 
 Title: ${issue.title}

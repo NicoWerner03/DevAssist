@@ -56,9 +56,23 @@ export type GitlabNoteWebhookPayload = {
   };
 };
 
+export type GitlabMergeRequestWebhookPayload = {
+  object_kind: "merge_request";
+  user?: GitlabUser;
+  project?: {
+    id?: GitlabId;
+  };
+  object_attributes?: {
+    action?: string;
+    state?: string;
+    iid?: number;
+  };
+};
+
 export type GitlabKnownWebhookPayload =
   | GitlabIssueWebhookPayload
-  | GitlabNoteWebhookPayload;
+  | GitlabNoteWebhookPayload
+  | GitlabMergeRequestWebhookPayload;
 
 // Unknown GitLab webhook events are intentionally broad; use explicit type guards before reading issue/note-specific fields.
 export type GitlabOtherWebhookPayload = {
