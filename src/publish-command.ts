@@ -65,7 +65,15 @@ export async function runPublishCommand(
   const newTitle = titleMatch[1].trim();
   const imageReferences = collectImageReferences(getIssueImageSources(issue, comments, botUsername, proposalComment.id));
   await enrichImageReferencesWithVision(imageReferences, issue, opencodeClient);
-  const newDescription = appendMissingImageReferences(descMatch[1].trim(), imageReferences);
+  const proposedDescription = appendMissingImageReferences(descMatch[1].trim(), imageReferences);
+  const newDescription = [
+    `**Projekt:** ${projectId}  `,
+    `**Ticket:** ${issueIid}`,
+    "",
+    "---",
+    "",
+    proposedDescription
+  ].join("\n");
 
   // 4. Update the issue
   logger.info(`[WEBHOOK] Updating title and description for Issue #${issueIid}...`);

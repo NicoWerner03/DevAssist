@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { OpencodeClient } from "@opencode-ai/sdk";
 
-test("publish restores issue screenshots next to their matching proposal description context", async () => {
+test("publish prepends visible ticket metadata and restores issue screenshots", async () => {
   const gitlab = await import("../src/gitlab.js");
   const webhook = await loadWebhookForSimulation();
 
@@ -71,6 +71,11 @@ test("publish restores issue screenshots next to their matching proposal descrip
   assert.equal(
     issue.description,
     [
+      "**Projekt:** 12345  ",
+      "**Ticket:** 1",
+      "",
+      "---",
+      "",
       "## Reproduction",
       "The login dialog opens without any fields.",
       "![Empty login dialog](/uploads/empty-login.png)",
