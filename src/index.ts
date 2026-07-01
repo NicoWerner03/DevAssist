@@ -2,7 +2,6 @@ import "dotenv/config";
 import express from "express";
 import { createOpencode } from "@opencode-ai/sdk";
 import { handleGitlabWebhook, initBotUser } from "./webhook.js";
-import { refreshRepositorySummary } from "./repo-summary.js";
 import logger from "./logger.js";
 import { spawn, ChildProcess } from "child_process";
 
@@ -88,18 +87,9 @@ async function startServer() {
   // 2. Fetch/Initialize the bot username
   await initBotUser();
 
-  // 3. Generate the initial repository summary (non-blocking so the server
-  //    becomes ready promptly; it is attached to dev-assist requests once ready).
-  logger.info("Generating initial repository summary...");
-  void refreshRepositorySummary(client).then(summary => {
-    if (summary) {
-      logger.info("Initial repository summary is ready.");
-    } else {
-      logger.warn("Initial repository summary could not be generated; continuing without it.");
-    }
-  });
-
-  // 4. Register the webhook handler
+  // 3. Register the webhook handler.
+  //    Repository summaries are generated per project: lazily on the first issue
+  //    analysis for a project and refreshed after every merged merge request.
   app.post("/webhook/gitlab", (req, res) => {
     handleGitlabWebhook(req, res, client);
   });
@@ -108,7 +98,7 @@ async function startServer() {
     res.status(200).json({ status: "healthy" });
   });
 
-  // 5. Start the Express server
+  // 4. Start the Express server
   const expressServer = app.listen(PORT, () => {
     logger.info(`GitLab Webhook Dev-Assist Server listening on port ${PORT}`);
     logger.info(`Webhook endpoint is: http://localhost:${PORT}/webhook/gitlab`);
@@ -118,7 +108,7 @@ async function startServer() {
     }
   });
 
-  // 6. Graceful shutdown handler
+  // 5. Graceful shutdown handler
   const handleShutdown = () => {
     logger.info("Shutting down servers...");
     if (tunnelProcess) {

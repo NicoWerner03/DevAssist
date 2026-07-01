@@ -2,7 +2,25 @@ import { exec } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import logger from "./logger.js";
-import type { GitlabComment, GitlabIssue } from "./types.js";
+import type { GitlabComment, GitlabIssue, GitlabProjectInfo, GitlabRepoTreeItem } from "./types.js";
+
+// Mock repository data used when IS_SIMULATION=true.
+const mockProject: GitlabProjectInfo = {
+  id: 12345,
+  name: "mock-project",
+  description: "A mock project for simulation.",
+  default_branch: "main"
+};
+const mockTree: GitlabRepoTreeItem[] = [
+  { path: "package.json", type: "blob", name: "package.json" },
+  { path: "README.md", type: "blob", name: "README.md" },
+  { path: "src", type: "tree", name: "src" },
+  { path: "src/index.ts", type: "blob", name: "index.ts" }
+];
+const mockFiles: Record<string, string> = {
+  "package.json": '{"name":"mock-project","scripts":{"build":"tsc","test":"node --test"}}',
+  "README.md": "# Mock Project\nA simulated repository."
+};
 
 // Simulation State
 let mockComments: GitlabComment[] = [];
@@ -181,5 +199,94 @@ export async function deleteIssueComment(projectId: string | number, issueIid: n
     await runCommand(`glab api -X DELETE "${endpoint}"`);
   } catch (error) {
     logger.error(`Failed to delete comment ${noteId} on issue ${issueIid}: ` + (error as Error).message);
+  }
+}
+
+/**
+ * Fetches basic project metadata (name, description, default branch).
+ */
+export async function getProject(projectId: string | number): Promise<GitlabProjectInfo> {
+  if (process.env.IS_SIMULATION === "true") {
+    return mockProject;
+  }
+
+  const endpoint = `projects/${encodeURIComponent(projectId)}`;
+  const output = await runCommand(`glab api "${endpoint}"`);
+  return JSON.parse(output) as GitlabProjectInfo;
+}
+
+/**
+ * Fetches the language breakdown of a project (e.g. { "TypeScript": 80.5 }).
+ */
+export async function getRepositoryLanguages(projectId: string | number): Promise<Record<string, number>> {
+  if (process.env.IS_SIMULATION === "true") {
+    return { TypeScript: 100 };
+  }
+
+  const endpoint = `projects/${encodeURIComponent(projectId)}/languages`;
+  try {
+    const output = await runCommand(`glab api "${endpoint}"`);
+    return JSON.parse(output) as Record<string, number>;
+  } catch (error) {
+    logger.error(`Error fetching languages for project ${projectId}: ` + (error as Error).message);
+    return {};
+  }
+}
+
+/**
+ * Fetches the (recursive) repository file tree for the given ref.
+ */
+export async function getRepositoryTree(
+  projectId: string | number,
+  ref?: string
+): Promise<GitlabRepoTreeItem[]> {
+  if (process.env.IS_SIMULATION === "true") {
+    return mockTree;
+  }
+
+  const refQuery = ref ? `&ref=${encodeURIComponent(ref)}` : "";
+  const endpoint = `projects/${encodeURIComponent(projectId)}/repository/tree?recursive=true&per_page=100${refQuery}`;
+  try {
+    const output = await runCommand(`glab api "${endpoint}" --paginate`);
+    try {
+      return JSON.parse(output) as GitlabRepoTreeItem[];
+    } catch {
+      // Fall back to concatenated JSON arrays / NDJSON produced by --paginate.
+      return output
+        .split("\n")
+        .filter(line => line.trim())
+        .flatMap(line => {
+          const parsed = JSON.parse(line) as GitlabRepoTreeItem | GitlabRepoTreeItem[];
+          return Array.isArray(parsed) ? parsed : [parsed];
+        });
+    }
+  } catch (error) {
+    logger.error(`Error fetching repository tree for project ${projectId}: ` + (error as Error).message);
+    return [];
+  }
+}
+
+/**
+ * Fetches the raw contents of a single repository file. Returns null if the
+ * file does not exist or cannot be read.
+ */
+export async function getRepositoryFile(
+  projectId: string | number,
+  filePath: string,
+  ref?: string
+): Promise<string | null> {
+  if (process.env.IS_SIMULATION === "true") {
+    return mockFiles[filePath] ?? null;
+  }
+
+  // GitLab requires the file path to be fully URL-encoded (slashes -> %2F).
+  const encodedPath = encodeURIComponent(filePath);
+  const refQuery = ref ? `?ref=${encodeURIComponent(ref)}` : "";
+  const endpoint = `projects/${encodeURIComponent(projectId)}/repository/files/${encodedPath}/raw${refQuery}`;
+  try {
+    return await runCommand(`glab api "${endpoint}"`);
+  } catch (error) {
+    logger.debug(`Could not read file ${filePath} from project ${projectId}: ` + (error as Error).message);
+    return null;
   }
 }

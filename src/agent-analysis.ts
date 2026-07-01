@@ -8,7 +8,7 @@ import {
 } from "./image-references.js";
 import logger from "./logger.js";
 import { joinTextParts } from "./opencode-parts.js";
-import { formatRepositorySummaryForPrompt } from "./repo-summary.js";
+import { ensureRepositorySummary, formatRepositorySummaryForPrompt } from "./repo-summary.js";
 import type { AgentQuestionResponse, AgentResponse, OpencodeResponsePart } from "./types.js";
 import { enrichImageReferencesWithVision } from "./vision.js";
 
@@ -137,9 +137,15 @@ export async function runAnalysis(
   const imageReferences = collectImageReferences(getIssueImageSources(issue, comments, botUsername));
   await enrichImageReferencesWithVision(imageReferences, issue, opencodeClient);
 
+  // Ensure a repository summary for this project exists (generated lazily) so it
+  // can be attached as additional context for the agent.
+  await ensureRepositorySummary(projectId, opencodeClient).catch(err => {
+    logger.warn(`[AGENT] Could not ensure repository summary for project ${projectId}: ` + err.message);
+  });
+
   const promptText = `
 Repository summary (for additional context about the codebase this issue belongs to):
-${formatRepositorySummaryForPrompt()}
+${formatRepositorySummaryForPrompt(projectId)}
 
 Here is the current GitLab issue for analysis:
 

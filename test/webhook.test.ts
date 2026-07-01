@@ -247,7 +247,7 @@ test("webhook ignores merge request events that are not merges", async () => {
 test("issue analysis attaches the cached repository summary to the agent prompt", async () => {
   const webhook = await loadWebhookForSimulation();
   const repoSummary = await import("../src/repo-summary.js");
-  repoSummary.setRepositorySummary("## Technology Stack\n- REPO_SUMMARY_MARKER");
+  repoSummary.setRepositorySummary(12345, "## Technology Stack\n- REPO_SUMMARY_MARKER");
 
   let capturedPrompt = "";
   const capturingClient = {
@@ -301,6 +301,7 @@ function createResponse() {
 
 async function loadWebhookForSimulation() {
   process.env.IS_SIMULATION = "true";
+  process.env.DISABLE_REPO_SUMMARY_FILE = "true";
   const webhook = await import("../src/webhook.js");
   await webhook.initBotUser();
   return webhook;

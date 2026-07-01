@@ -26,6 +26,21 @@ export type GitlabComment = {
   system?: boolean;
 };
 
+export type GitlabProjectInfo = {
+  id?: GitlabId;
+  name?: string;
+  description?: string | null;
+  default_branch?: string;
+};
+
+export type GitlabRepoTreeItem = {
+  id?: string;
+  name?: string;
+  type?: "blob" | "tree";
+  path: string;
+  mode?: string;
+};
+
 export type GitlabIssueWebhookPayload = {
   object_kind: "issue";
   user?: GitlabUser;

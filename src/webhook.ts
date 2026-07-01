@@ -145,12 +145,13 @@ export async function handleGitlabWebhook(
       const action = payload.object_attributes?.action;
       const state = payload.object_attributes?.state;
       const isMerged = action === "merge" || state === "merged";
+      const projectId = payload.project?.id;
 
-      if (isMerged) {
-        logger.info(`[WEBHOOK] Merge request merged; refreshing repository summary.`);
+      if (isMerged && projectId) {
+        logger.info(`[WEBHOOK] Merge request merged in project ${projectId}; refreshing repository summary.`);
         res.status(200).json({ message: "Refreshing repository summary..." });
 
-        refreshRepositorySummary(opencodeClient).catch(err => {
+        refreshRepositorySummary(projectId, opencodeClient).catch(err => {
           logger.error(`[WEBHOOK] Error refreshing repository summary after merge: ` + err.message);
         });
         return;
