@@ -12,6 +12,7 @@ export interface TicketContextForAI {
   issue?: any;
   comments?: any[];
   rawText?: string; // fallback
+  repositorySummary?: string | null;
 }
 
 export interface AiService {
@@ -24,7 +25,7 @@ export interface AiService {
  * comes from the shared module so both the direct xai path and the opencode
  * path stay in sync automatically.
  */
-function buildUserPrompt(ctx: TicketContextForAI): string {
+export function buildUserPrompt(ctx: TicketContextForAI): string {
   const issue = ctx.issue || {};
   const parts: string[] = [
     // Use the full shared instructions (including clarification guidance)
@@ -35,6 +36,10 @@ function buildUserPrompt(ctx: TicketContextForAI): string {
     `Title: ${issue.title || ''}`,
     `Description:\n${issue.description || ctx.rawText || ''}`,
   ];
+  if (ctx.repositorySummary && ctx.repositorySummary.trim()) {
+    parts.push('\n## Repository Summary');
+    parts.push(ctx.repositorySummary.trim());
+  }
   if (ctx.comments && ctx.comments.length) {
     parts.push('\n## Recent Comments (for context)');
     for (const c of ctx.comments.slice(-6)) {
@@ -270,6 +275,12 @@ async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<Requirement
     pathMod.join(process.cwd(), '.opencode', 'prompts', 'requirement-analysis.md'),
     pathMod.join(runtimePromptDir, 'requirement-analysis.md')
   );
+  await fs.copyFile(
+    pathMod.join(process.cwd(), '.opencode', 'prompts', 'repo-summary.md'),
+    pathMod.join(runtimePromptDir, 'repo-summary.md')
+  ).catch((e: any) => {
+    if (e.code !== 'ENOENT') throw e;
+  });
 
   const npmOpencodeExe = process.platform === 'win32' && process.env.APPDATA
     ? pathMod.join(process.env.APPDATA, 'npm', 'node_modules', 'opencode-ai', 'bin', 'opencode.exe')

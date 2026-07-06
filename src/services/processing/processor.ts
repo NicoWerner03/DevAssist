@@ -5,9 +5,11 @@ import { createAiService } from '../ai/service.js';
 import { renderClarificationComment, renderRequirementAnalysis } from '../ai/formatter.js';
 import { writeContextFile } from '../context/writer.js';
 import { mentionGate } from '../gitlab/mention.js';
+import { createRepositorySummaryProvider } from '../repositorySummary.js';
 
 const gitlab = createGitLabClient();
 const ai = createAiService();
+const repositorySummary = createRepositorySummaryProvider({ gitlab });
 
 export async function processIssue(projectId: string | number, issueIid: string | number, extraText?: string) {
   const log = logger.withContext({ projectId, issueIid, phase: 'process' });
@@ -23,12 +25,18 @@ export async function processIssue(projectId: string | number, issueIid: string 
     log.warn('Failed to fetch full context from GitLab via glab (common when local glab token has no API access to the project). Proceeding with data from the webhook payload only for the analyzer.', { error: e.message });
   }
 
+  const summary = await repositorySummary.ensureRepositorySummary(projectId);
+  if (summary) {
+    log.info('Repository summary available for AI analysis', { chars: summary.length });
+  }
+
   // Build a compact context for the AI (fallback to webhook data if fetch failed)
   const ctx = {
     project: { id: projectId },
     issue: { ...issue, iid: issueIid },
     comments: notes,
     rawText: extraText,
+    repositorySummary: summary,
   };
 
   log.info('Starting AI analysis — this step can take 30-120+ seconds (opencode + model call). Set LOG_LEVEL=debug for more detail.');

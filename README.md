@@ -22,7 +22,7 @@ The resulting tickets always follow the same reliable structure. The detailed an
 - TypeScript, Express
 - GitLab webhooks + `glab` (primary, often no `GITLAB_TOKEN` needed in `.env`) or PAT fallback
 - AI via `AI_PROVIDER=mock` for local testing or `AI_PROVIDER=opencode` for real analysis through the `opencode` CLI and the `dev-assist-analyzer` agent
-- Provider and model are configured through `.env`; `opencode.json` defines the analyzer agent.
+- Provider and model are configured through `.env`; `opencode.json` defines the analyzer and repository-summary agents.
 - All secrets in `.env`
 - Local context bridge: `.dev-assist/issues/<projectId>/<issueIid>/context.md` plus `context.json` metadata
 
@@ -62,6 +62,7 @@ Invoke-RestMethod -Uri http://localhost:5000/webhooks/gitlab/issues `
 Watch the console – every step is logged.
 
 Context files will appear under `.dev-assist/issues/123/42/` (`context.md` and, when metadata is available, `context.json`).
+When `AI_PROVIDER=opencode`, the first process run for a GitLab project also generates a repository summary from GitLab metadata, languages, file tree, and key root files. It is cached in memory and written to `.dev-assist/repo-summary-<projectId>.md`.
 
 To simulate publish, send a note webhook containing `@dev-assist publish` (or use the manual endpoint / script later).
 
@@ -104,8 +105,9 @@ The current real-AI path is `AI_PROVIDER=opencode`.
 This project uses opencode primarily for the ticket analysis step.
 
 - `opencode.json` lives at the project root.
-- The only agent defined here is `dev-assist-analyzer` (see `opencode.json`).
+- The agents defined here are `dev-assist-analyzer` and `repo-summary` (see `opencode.json`).
 - Its lightweight base prompt lives at `.opencode/prompts/requirement-analysis.md`.
+- The repository summary prompt lives at `.opencode/prompts/repo-summary.md`.
 - The complete, up-to-date rules and JSON schema instructions are sent at runtime from `src/services/ai/instructions.ts`.
 - OpenCode skills live under `.opencode/skills/`; the GitLab issue workflow skill is `.opencode/skills/gitlab-issues.md`.
 

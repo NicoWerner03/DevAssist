@@ -22,9 +22,29 @@ export interface GitLabNote {
   [key: string]: unknown;
 }
 
+export interface GitLabProject {
+  id?: number;
+  name?: string;
+  description?: string | null;
+  default_branch?: string;
+  [key: string]: unknown;
+}
+
+export interface GitLabRepoTreeItem {
+  id?: string;
+  name?: string;
+  path: string;
+  type: 'tree' | 'blob' | string;
+  [key: string]: unknown;
+}
+
 export interface GitLabClient {
   getIssue(projectId: string | number, issueIid: string | number): Promise<GitLabIssue>;
   listNotes(projectId: string | number, issueIid: string | number): Promise<GitLabNote[]>;
+  getProject(projectId: string | number): Promise<GitLabProject>;
+  getRepositoryLanguages(projectId: string | number): Promise<Record<string, number>>;
+  getRepositoryTree(projectId: string | number, ref?: string): Promise<GitLabRepoTreeItem[]>;
+  getRepositoryFile(projectId: string | number, filePath: string, ref?: string): Promise<string | null>;
   createNote(projectId: string | number, issueIid: string | number, body: string): Promise<GitLabNote>;
   deleteNote(projectId: string | number, issueIid: string | number, noteId: number): Promise<void>;
   updateIssueDescription(projectId: string | number, issueIid: string | number, description: string): Promise<void>;
@@ -97,6 +117,40 @@ async function glabApi(args: string[]): Promise<any> {
   }
 }
 
+async function glabApiRaw(args: string[]): Promise<string> {
+  const cfg = getConfig();
+  const normalizedArgs = args.map((arg) => {
+    if (arg.startsWith('/projects/')) return arg.slice(1);
+    if (arg.startsWith('/') && /^\/\d+/.test(arg)) return `projects${arg}`;
+    return arg;
+  });
+
+  const cmdArgs = ['api', ...normalizedArgs];
+  let glabHostname = cfg.gitlab.glabHostname;
+  if (glabHostname) {
+    glabHostname = String(glabHostname)
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/$/, '')
+      .trim();
+  }
+  if (glabHostname && !glabHostname.includes('://') && glabHostname !== 'gitlab.com') {
+    cmdArgs.push('--hostname', glabHostname);
+  }
+
+  logger.debug('glab raw api call', { args: cmdArgs.filter(a => !a.includes('token')) });
+  try {
+    const { stdout, stderr } = await execFileAsync('glab', cmdArgs, { maxBuffer: 10 * 1024 * 1024 });
+    if (stderr && stderr.trim()) {
+      logger.warn('glab stderr', { stderr: stderr.trim().slice(0, 300) });
+    }
+    return stdout;
+  } catch (err: any) {
+    const msg = err?.stderr?.toString() || err.message || String(err);
+    logger.error('glab raw api failed', { command: `glab ${cmdArgs.join(' ')}`, error: msg.trim() });
+    throw new Error(`glab command failed: ${msg.trim()}`);
+  }
+}
+
 async function tokenApi(path: string, init: RequestInit = {}): Promise<any> {
   const cfg = getConfig();
   const token = cfg.gitlab.token;
@@ -117,6 +171,27 @@ async function tokenApi(path: string, init: RequestInit = {}): Promise<any> {
   }
   if (res.status === 204) return null;
   return res.json();
+}
+
+function parsePaginatedJson<T>(output: unknown): T[] {
+  if (Array.isArray(output)) return output as T[];
+  if (typeof output !== 'string') return [];
+
+  const trimmed = output.trim();
+  if (!trimmed) return [];
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    return trimmed
+      .split(/\r?\n/)
+      .filter(line => line.trim())
+      .flatMap(line => {
+        const parsed = JSON.parse(line) as T | T[];
+        return Array.isArray(parsed) ? parsed : [parsed];
+      });
+  }
 }
 
 export function createGitLabClient(): GitLabClient {
@@ -148,6 +223,54 @@ export function createGitLabClient(): GitLabClient {
         return glabApi([path]);
       }
       return tokenApi(path);
+    },
+
+    async getProject(projectId) {
+      const pid = encodeURIComponent(String(projectId));
+      const path = `/projects/${pid}`;
+      if (useGlab) {
+        return glabApi([path]);
+      }
+      return tokenApi(path);
+    },
+
+    async getRepositoryLanguages(projectId) {
+      const pid = encodeURIComponent(String(projectId));
+      const path = `/projects/${pid}/languages`;
+      if (useGlab) {
+        return glabApi([path]);
+      }
+      return tokenApi(path);
+    },
+
+    async getRepositoryTree(projectId, ref) {
+      const pid = encodeURIComponent(String(projectId));
+      const refQuery = ref ? `&ref=${encodeURIComponent(ref)}` : '';
+      const path = `/projects/${pid}/repository/tree?recursive=true&per_page=100${refQuery}`;
+      if (useGlab) {
+        return parsePaginatedJson<GitLabRepoTreeItem>(await glabApi([path, '--paginate']));
+      }
+      return tokenApi(path);
+    },
+
+    async getRepositoryFile(projectId, filePath, ref) {
+      const pid = encodeURIComponent(String(projectId));
+      const encodedPath = encodeURIComponent(filePath);
+      const refQuery = ref ? `?ref=${encodeURIComponent(ref)}` : '';
+      const path = `/projects/${pid}/repository/files/${encodedPath}/raw${refQuery}`;
+      try {
+        if (useGlab) {
+          return await glabApiRaw([path]);
+        }
+        const res = await fetch(`${getBaseUrl()}/api/v4${path}`, {
+          headers: cfg.gitlab.token ? { 'PRIVATE-TOKEN': cfg.gitlab.token } : {},
+        });
+        if (!res.ok) return null;
+        return res.text();
+      } catch (e: any) {
+        logger.debug('Could not read repository file', { projectId, filePath, error: e.message });
+        return null;
+      }
     },
 
     async createNote(projectId, issueIid, body) {

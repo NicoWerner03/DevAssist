@@ -4,6 +4,10 @@
     "dev-assist-analyzer": {
       "description": "Analyzes GitLab issues and returns structured requirement-analysis JSON.",
       "prompt": "{file:./.opencode/prompts/requirement-analysis.md}"
+    },
+    "repo-summary": {
+      "description": "Summarizes a GitLab repository from fetched metadata, tree, languages, and key files.",
+      "prompt": "{file:./.opencode/prompts/repo-summary.md}"
     }
   }
 }
