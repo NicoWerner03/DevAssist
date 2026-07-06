@@ -1,7 +1,7 @@
-import logger from '../../utils/logger';
-import { createGitLabClient } from '../gitlab/client';
-import { readContextFile, readContextMetadata } from '../context/reader';
-import { filterDeletableNotes } from '../gitlab/cleanup';
+import logger from '../../utils/logger.js';
+import { createGitLabClient } from '../gitlab/client.js';
+import { readContextFile, readContextMetadata } from '../context/reader.js';
+import { filterDeletableNotes } from '../gitlab/cleanup.js';
 
 const gitlab = createGitLabClient();
 

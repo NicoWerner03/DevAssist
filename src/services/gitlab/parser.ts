@@ -1,5 +1,5 @@
-import { mentionGate } from './mention';
-import { parseDevAssistCommand, DevAssistCommand } from './commands';
+import { mentionGate } from './mention.js';
+import { parseDevAssistCommand, DevAssistCommand } from './commands.js';
 
 export interface ParsedWebhook {
   kind: 'issue' | 'note' | 'other';

@@ -1,10 +1,10 @@
-import { getConfig } from '../../config';
-import logger from '../../utils/logger';
-import { createGitLabClient } from '../gitlab/client';
-import { createAiService } from '../ai/service';
-import { renderClarificationComment, renderRequirementAnalysis } from '../ai/formatter';
-import { writeContextFile } from '../context/writer';
-import { mentionGate } from '../gitlab/mention';
+import { getConfig } from '../../config.js';
+import logger from '../../utils/logger.js';
+import { createGitLabClient } from '../gitlab/client.js';
+import { createAiService } from '../ai/service.js';
+import { renderClarificationComment, renderRequirementAnalysis } from '../ai/formatter.js';
+import { writeContextFile } from '../context/writer.js';
+import { mentionGate } from '../gitlab/mention.js';
 
 const gitlab = createGitLabClient();
 const ai = createAiService();

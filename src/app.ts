@@ -1,9 +1,9 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { createHealthRouter } from './routes/health';
-import { createIssueRouter } from './routes/issues';
-import { createGitLabWebhookRouter } from './routes/gitlabWebhooks';
-import { getConfig } from './config';
-import logger from './utils/logger';
+import { createHealthRouter } from './routes/health.js';
+import { createIssueRouter } from './routes/issues.js';
+import { createGitLabWebhookRouter } from './routes/gitlabWebhooks.js';
+import { getConfig } from './config.js';
+import logger from './utils/logger.js';
 
 const config = getConfig();
 

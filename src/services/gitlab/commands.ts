@@ -1,4 +1,4 @@
-import { mentionGate } from './mention';
+import { mentionGate } from './mention.js';
 
 export type DevAssistCommand = 'publish' | 'process';
 

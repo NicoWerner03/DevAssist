@@ -1,4 +1,4 @@
-import { RequirementAnalysis } from './schema';
+import { RequirementAnalysis } from './schema.js';
 
 export function renderGitLabComment(analysis: RequirementAnalysis): string {
   // Deprecated for main flow (full proposal now posted directly as comment).

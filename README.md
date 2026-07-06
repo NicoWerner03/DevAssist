@@ -8,23 +8,23 @@ Everything (webhooks, AI calls, GitLab operations, file writes, publish steps) i
 
 1. Issue is created or a comment is added on GitLab.
 2. GitLab webhook (or manual trigger) notifies dev-assist.
-3. If the description or comment body **starts with** `@dev-assist`, the tool reacts.
+3. If the first content line of the description or comment starts with `@dev-assist`, the tool reacts. Leading whitespace and simple Markdown markers such as `##`, `-`, or `**` are tolerated.
 4. **Optimal case** (enough information): dev-assist posts a **proposal comment** showing how the structured ticket will look.
 5. User replies with `@dev-assist publish`:
    - All `@dev-assist` conversation comments are deleted.
-   - The issue description is replaced with the clean, standardized structure.
+   - The issue title and description are replaced with the clean, standardized structure.
 6. If information is missing: dev-assist asks clarifying questions in comments until it has enough, then proposes again.
 
-The resulting tickets always follow the **same reliable structure** (JSON schema is described precisely inside the prompt / opencode agent).
+The resulting tickets always follow the same reliable structure. The detailed analysis rules live in `src/services/ai/instructions.ts`, and the runtime output is validated against `src/services/ai/schema.ts`.
 
 ## Tech
 
 - TypeScript, Express
 - GitLab webhooks + `glab` (primary, often no `GITLAB_TOKEN` needed in `.env`) or PAT fallback
-- AI via **opencode.ai SDK + agents/skills** (primary) or direct OpenAI-compatible providers
-- Provider and model are configured through `.env` and `opencode.json`.
+- AI via `AI_PROVIDER=mock` for local testing or `AI_PROVIDER=opencode` for real analysis through the `opencode` CLI and the `dev-assist-analyzer` agent
+- Provider and model are configured through `.env`; `opencode.json` defines the analyzer agent.
 - All secrets in `.env`
-- Local context bridge: `.dev-assist/issues/<projectId>/<issueIid>/context.md`
+- Local context bridge: `.dev-assist/issues/<projectId>/<issueIid>/context.md` plus `context.json` metadata
 
 ## Quickstart (mock mode – no keys required)
 
@@ -61,7 +61,7 @@ Invoke-RestMethod -Uri http://localhost:5000/webhooks/gitlab/issues `
 
 Watch the console – every step is logged.
 
-A context file will appear under `.dev-assist/issues/123/42/context.md`.
+Context files will appear under `.dev-assist/issues/123/42/` (`context.md` and, when metadata is available, `context.json`).
 
 To simulate publish, send a note webhook containing `@dev-assist publish` (or use the manual endpoint / script later).
 
@@ -77,7 +77,7 @@ glab auth login
 GITLAB_USE_GLAB=true
 GITLAB_GLAB_HOSTNAME=          # only for self-managed
 GITLAB_WEBHOOK_SIGNING_SECRET=your-secret-from-gitlab
-AI_PROVIDER=mock               # or xai / opencode
+AI_PROVIDER=mock               # or opencode
 ```
 
 Expose the service (for GitLab to reach it):
@@ -87,40 +87,44 @@ Expose the service (for GitLab to reach it):
 
 ## Using Real AI
 
-1. Create an API key with your AI provider.
-2. In .env:
-   ```
-   AI_PROVIDER=openai-compat
-   AI_API_KEY=your-api-key
-   AI_BASE_URL=https://your-provider.example/v1
-   AI_MODEL=your-model-name
-   ```
-3. Or use `AI_PROVIDER=opencode` with a matching `opencode.json` model/provider configuration (see below).
+The current real-AI path is `AI_PROVIDER=opencode`.
 
-## opencode.ai SDK + Agents & Skills
+1. Install and configure the `opencode` CLI for the provider/model you want to use.
+2. Set the provider in `.env`:
+   ```
+   AI_PROVIDER=opencode
+   AI_MODEL=xai/grok-3-latest
+   AI_TIMEOUT_MS=120000
+   ```
+3. Keep `AI_PROVIDER=mock` for local tests without external keys or model calls.
+
+## opencode CLI + Agent
 
 This project uses opencode primarily for the ticket analysis step.
 
 - `opencode.json` lives at the project root.
 - The only agent defined here is `dev-assist-analyzer` (see `opencode.json`).
-- Its prompt lives at `.opencode/prompts/requirement-analysis.md` — this is where the exact JSON schema + rules are described (as required by the original project spec).
+- Its lightweight base prompt lives at `.opencode/prompts/requirement-analysis.md`.
+- The complete, up-to-date rules and JSON schema instructions are sent at runtime from `src/services/ai/instructions.ts`.
 - OpenCode skills live under `.opencode/skills/`; the GitLab issue workflow skill is `.opencode/skills/gitlab-issues.md`.
 
-Set `AI_PROVIDER=opencode` (plus a working `opencode` CLI + `AI_API_KEY`) to let dev-assist use this agent for refining issues.
+Set `AI_PROVIDER=opencode` plus a working `opencode` CLI and its required provider credentials to let dev-assist use this agent for refining issues.
 
 **Note:** The generated `.dev-assist/issues/.../context.md` files are meant to be consumed by separate opencode setups in your actual development repositories (with their own agents for planning, implementing, reviewing etc.). This project only maintains the analyzer needed for the `@dev-assist` refinement workflow.
 
 ## Manual triggers (useful during development)
 
 ```powershell
-# Process an existing issue (creates proposal + context file)
+# Process an existing issue (creates proposal + context files)
 curl -X POST http://localhost:5000/api/issues/123/42/process
 
-# Publish (reads context file, cleans comments, updates issue)
+# Publish (reads context files, cleans comments, updates issue title/description)
 curl -X POST http://localhost:5000/api/issues/123/42/publish
 
 # Or via npm script (after build or with tsx)
 npm run publish-issue -- 123/42
+# Optional actions: close/reopen and labels
+npm run publish-issue -- 123/42 close,ready-for-dev
 ```
 
 ## Project structure (kept deliberately small)
@@ -130,26 +134,28 @@ src/
   config.ts
   server.ts
   app.ts
+  cli/
+    publish-issue.ts # manual publish entry point
   routes/
     health.ts
     gitlabWebhooks.ts
     issues.ts
   services/
     gitlab/          # mention, parser, auth, commands, cleanup, clients (glab + token)
-    ai/              # service + prompts + schema + formatter (+ opencode path)
+    ai/              # service + shared instructions + schema + formatter (+ opencode path)
     processing/      # processor + publisher
     context/         # writer + reader for .dev-assist/... files
   utils/
     logger.ts        # Everything is logged to the console
-.opencode/           # agents, prompts, skills, commands for opencode
+.opencode/           # agent config, prompts and skills for opencode
 ```
 
 ## Important notes from the spec
 
-- Only leading `@dev-assist` triggers processing.
-- The exact JSON shape + rules live in the prompt / opencode agent definition.
+- Only `@dev-assist` at the start of the first content line triggers processing. Basic Markdown formatting before the mention is tolerated.
+- The exact JSON shape and detailed analysis rules live in `src/services/ai/instructions.ts` and `src/services/ai/schema.ts`; the opencode prompt is intentionally lightweight.
 - glab is the common "no extra token" path.
-- After publish the conversation comments that involved `@dev-assist` are removed and the issue becomes a clean, structured ticket.
+- After publish the conversation comments that involved `@dev-assist` are removed and the issue title/description become a clean, structured ticket.
 
 See `descriptions/project_description.txt` for the original German requirements.
 
@@ -162,7 +168,7 @@ npm run dev          # tsx watch
 
 ## Future
 
-- Easy to add OpenAI-compatible providers.
+- Direct OpenAI-compatible providers can be added later; currently implemented providers are `mock` and `opencode`.
 - The same context files + opencode agents/skills are used by developers for actual implementation work after the ticket has been published.
 
 Happy structuring!

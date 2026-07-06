@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import { getConfig } from '../../config';
-import logger from '../../utils/logger';
+import { getConfig } from '../../config.js';
+import logger from '../../utils/logger.js';
 
 export interface WebhookVerificationResult {
   ok: boolean;

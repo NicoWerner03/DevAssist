@@ -1,6 +1,6 @@
-import { createApp } from './app';
-import { getConfig } from './config';
-import logger, { setLogLevel } from './utils/logger';
+import { createApp } from './app.js';
+import { getConfig } from './config.js';
+import logger, { setLogLevel } from './utils/logger.js';
 
 const config = getConfig();
 

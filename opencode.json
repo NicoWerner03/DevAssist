@@ -1,13 +1,9 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "agent": {
-    "dev-assist": {
-      "description": "Analyzes GitLab issues for dev context and formatting, and asks clarifying questions.",
-      "prompt": "{file:./.opencode/prompts/dev-assist-prompt.txt}"
-    },
-    "repo-summary": {
-      "description": "Explores the repository and produces a concise summary (tech stack, structure, commands, architecture, important files, conventions).",
-      "prompt": "{file:./.opencode/prompts/repo-summary-prompt.txt}"
+    "dev-assist-analyzer": {
+      "description": "Analyzes GitLab issues and returns structured requirement-analysis JSON.",
+      "prompt": "{file:./.opencode/prompts/requirement-analysis.md}"
     }
   }
 }

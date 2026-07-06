@@ -1,4 +1,4 @@
-import { mentionGate } from './mention';
+import { mentionGate } from './mention.js';
 
 const DEV_ASSIST_MARKERS = [
   /## Dev-Assist:/i,

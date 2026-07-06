@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import logger from '../utils/logger';
-import { processIssue } from '../services/processing/processor';
-import { publishIssue } from '../services/processing/publisher';
+import logger from '../utils/logger.js';
+import { processIssue } from '../services/processing/processor.js';
+import { publishIssue } from '../services/processing/publisher.js';
 
 export function createIssueRouter() {
   const router = Router();

@@ -1,145 +1,143 @@
 ---
 name: gitlab-tickets
 description: >-
-  Fetch and inspect GitLab tickets (issues) via the `glab` CLI. Use when the
-  user wants to list, view, search, or filter GitLab issues/tickets — e.g.
-  "Projekt: 599 Ticket: 15", "hol Ticket #42", "zeig mir meine GitLab-Tickets",
-  "welche offenen Issues gibt es", "issues mit Label bug". Works against
+  Use when the user wants to fetch, view, list, search, or filter GitLab
+  issues/tickets with glab, including requests like "Projekt: 599 Ticket: 15",
+  "hol Ticket #42", "show issue", or "issues mit Label bug" for
   gitlab.dreso.com.
 ---
 
 # GitLab Tickets (via glab)
 
-Fetch tickets (GitLab "issues") using the authenticated `glab` CLI.
+Use the authenticated `glab` CLI to inspect GitLab issues and comments.
 
-## Primary request form: "Projekt: <id> / Ticket: <iid>"
+## Core Rules
 
-The user usually asks in this exact shape:
+- Target GitLab explicitly. This repo's remote points at GitHub, so `glab`
+  cannot infer the GitLab project from the current directory.
+- Check `glab auth status` if authentication is unclear. If login is required,
+  ask the user to run `glab auth login` interactively.
+- Read both the issue description and the comments before summarizing or using
+  a ticket as task context.
+- Treat a Dev-Assist proposal marked with `## Dev-Assist: Structured Proposal`
+  as the source of truth for implementation work unless newer comments override
+  it.
+- Do not dump raw JSON unless the user asks for it.
 
-```
+## Numeric Project ID Requests
+
+For requests in this shape:
+
+```text
 Projekt: 599
 Ticket: 15
 ```
 
-Here `599` is the numeric **project ID** and `15` is the issue **IID**.
-**`glab issue view --repo` does NOT accept numeric project IDs** (only
-`GROUP/PROJECT`). So for this form always use the REST API:
+Interpret `599` as the numeric project ID and `15` as the issue IID.
+`glab issue view --repo` does not accept numeric project IDs, so use the REST
+API:
 
 ```bash
-# The ticket itself
 glab api "projects/599/issues/15" --hostname gitlab.dreso.com
-
-# Its comments / discussion notes
 glab api "projects/599/issues/15/notes" --hostname gitlab.dreso.com
 ```
 
-Generalized: `glab api "projects/<PROJECT_ID>/issues/<TICKET_IID>" --hostname gitlab.dreso.com`
+General form:
 
-### Reading the JSON output
+```bash
+glab api "projects/<project-id>/issues/<issue-iid>" --hostname gitlab.dreso.com
+glab api "projects/<project-id>/issues/<issue-iid>/notes" --hostname gitlab.dreso.com
+```
 
-- `glab api` has **no `--jq` flag**, and standalone `jq` is **not installed**
-  here. Do not pipe to `jq`.
-- The JSON is one long line. To read it with the Read tool, redirect it to a
-  file **inside the project directory** (the Read tool can't see bash `/tmp`),
-  then delete it:
-  ```bash
-  glab api "projects/599/issues/15" --hostname gitlab.dreso.com \
-    > "C:/_dev/Projekte/DevAssist/.ticket.json"
-  # → Read C:\_dev\Projekte\DevAssist\.ticket.json, then:
-  rm -f "C:/_dev/Projekte/DevAssist/.ticket.json"
-  ```
-- For a quick field peek without a file: `... | tr ',' '\n' | grep '"title"'`.
+Project `599` is the default project for this workspace:
+`dreso/education/evaluation/dev-assist`.
 
-Project `599` = `dreso/education/evaluation/dev-assist`, the default project for
-this workspace.
+## Reading API Output
 
-## Prerequisites & context
+`glab api` has no built-in `--jq` flag, and standalone `jq` is not assumed to be
+available. If the JSON is hard to read, redirect it to a temporary file inside
+the project directory, read it, then remove it:
 
-- `glab` is authenticated against **gitlab.dreso.com** (check with
-  `glab auth status`). If not logged in, tell the user to run it themselves via
-  `! glab auth login` (interactive).
-- **This repo's git remote points at GitHub, not GitLab.** So `glab` cannot
-  infer the project from the current directory — always target the project
-  explicitly (numeric ID via API, or `--repo GROUP/PROJECT` for porcelain
-  commands).
+```powershell
+glab api "projects/599/issues/15" --hostname gitlab.dreso.com > .ticket.json
+Get-Content -LiteralPath .ticket.json
+Remove-Item -LiteralPath .ticket.json
+```
 
-## Determining the target repo/project
+For a quick field peek, line-split the raw output and search for the field name
+if shell tools are available.
 
-Forms accepted:
-- Numeric **project ID** (e.g. `599`) → REST API only (see above).
-- `--repo GROUP/PROJECT` or `GROUP/SUBGROUP/PROJECT` → porcelain commands.
-- Full project URL, or a ticket URL passed directly to `view`.
+## Determining the Target Repo/Project
 
-Discover projects the token can see (no external `jq` — grep the raw output):
+Accepted forms:
+
+- Numeric project ID, such as `599`: use REST API commands.
+- `GROUP/PROJECT` or `GROUP/SUBGROUP/PROJECT`: use `glab issue list/view`
+  with `--repo`.
+- Full GitLab issue URL: pass the URL directly to `glab issue view`.
+
+Discover projects the token can see:
 
 ```bash
 glab api "projects?membership=true&per_page=50&order_by=last_activity_at" \
   --hostname gitlab.dreso.com | tr ',' '\n' | grep '"path_with_namespace"'
 ```
 
-Map a numeric ID to its path: `glab api "projects/599" --hostname gitlab.dreso.com | tr ',' '\n' | grep path_with_namespace`
-
-## Listing tickets
-
-`glab issue list` and `glab issue view` DO have a **built-in `--jq`** (they
-embed jq) — use that, not an external `jq`. These need `--repo GROUP/PROJECT`,
-not a numeric ID.
+Map a numeric ID to its path:
 
 ```bash
-# Open issues (default)
-glab issue list --repo GROUP/PROJECT
+glab api "projects/599" --hostname gitlab.dreso.com | tr ',' '\n' | grep path_with_namespace
+```
 
-# All / only closed
+## Listing Issues
+
+`glab issue list` and `glab issue view` have a built-in `--jq`. These commands
+need `--repo GROUP/PROJECT`, not a numeric project ID.
+
+```bash
+glab issue list --repo GROUP/PROJECT
 glab issue list --repo GROUP/PROJECT --all
 glab issue list --repo GROUP/PROJECT --closed
-
-# Assigned to me
 glab issue list --repo GROUP/PROJECT --assignee=@me
-
-# Filter by label(s) / milestone
 glab issue list --repo GROUP/PROJECT --label bug --label urgent
 glab issue list --repo GROUP/PROJECT --milestone "Sprint 5"
-
-# Full-text search
 glab issue list --repo GROUP/PROJECT --search "login timeout"
-
-# Structured output
 glab issue list --repo GROUP/PROJECT --output json \
   --jq '.[] | {iid, title, state, labels, assignees: [.assignees[].username], web_url}'
 ```
 
-By numeric project ID, list via the API instead:
+For numeric project IDs, list via the API:
+
 ```bash
 glab api "projects/599/issues?state=opened&per_page=50" --hostname gitlab.dreso.com
 ```
 
-Useful list flags: `--author`, `--not-label`, `--not-assignee`,
-`--issue-type issue|incident|test_case`, `--per-page N`, `--page N`,
-`--order created_at|updated_at|priority|due_date`, `--sort asc|desc`.
+Useful list flags: `--author`, `--not-label`, `--not-assignee`, `--issue-type`,
+`--per-page`, `--page`, `--order`, and `--sort`.
 
-## Viewing a single ticket (by GROUP/PROJECT)
+## Viewing One Issue by Repo Path
 
 ```bash
-glab issue view 42 --repo GROUP/PROJECT              # basic
-glab issue view 42 --repo GROUP/PROJECT --comments   # with discussion
+glab issue view 42 --repo GROUP/PROJECT
+glab issue view 42 --repo GROUP/PROJECT --comments
 glab issue view 42 --repo GROUP/PROJECT --output json --jq '{iid,title,state,web_url}'
 glab issue view https://gitlab.dreso.com/group/project/-/issues/42 --comments
 ```
 
-## Raw API notes
+## Raw API Notes
 
-- Project path (not ID) must be URL-encoded: `/` → `%2F`, so
-  `dreso/education/evaluation/dev-assist` →
+- Project paths used in API URLs must be URL-encoded: `/` becomes `%2F`, so
+  `dreso/education/evaluation/dev-assist` becomes
   `dreso%2Feducation%2Fevaluation%2Fdev-assist`.
-- Large paginated results: `glab api "..." --paginate --output ndjson`.
+- For large paginated results, use `glab api "..." --paginate --output ndjson`.
 
-## How to respond
+## How to Respond
 
-1. Parse "Projekt: X / Ticket: Y" → project ID X, ticket IID Y → fetch via API.
+1. Parse "Projekt: X / Ticket: Y" as project ID X and issue IID Y, then fetch
+   the issue and notes via API.
 2. Run the narrowest command that answers the request.
-3. Summarize for the user: iid, title, state, author/assignee, labels,
-   description highlights, and the `web_url` to click through. For a full ticket
-   also include acceptance criteria / technical context if present. Don't dump
-   raw JSON unless asked.
-4. Errors: `401/403` → auth/permission (`glab auth status`); `404` → wrong
-   project ID/path or ticket number.
+3. Summarize IID, title, state, author, assignees, labels, description
+   highlights, comments, acceptance criteria, technical context, and `web_url`
+   when present.
+4. Handle errors directly: `401/403` means auth or permission; `404` means wrong
+   project ID/path, wrong issue IID, or missing permission.

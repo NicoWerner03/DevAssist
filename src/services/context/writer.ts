@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { getConfig } from '../../config';
-import logger from '../../utils/logger';
+import { getConfig } from '../../config.js';
+import logger from '../../utils/logger.js';
 
 export interface ContextMetadata {
   title?: string;

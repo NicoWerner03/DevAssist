@@ -1,11 +1,11 @@
-import { getConfig } from '../../config';
-import logger from '../../utils/logger';
-import { RequirementAnalysis, parseAnalysisJson } from './schema';
+import { getConfig } from '../../config.js';
+import logger from '../../utils/logger.js';
+import { RequirementAnalysis, parseAnalysisJson } from './schema.js';
 import {
   getFullAnalysisInstructions,
   ANALYSIS_PERSONA,
   getOpencodeAgentBasePrompt,
-} from './instructions';
+} from './instructions.js';
 
 export interface TicketContextForAI {
   project?: any;

@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { getConfig } from '../config';
-import logger from '../utils/logger';
-import { verifyWebhookRequest } from '../services/gitlab/auth';
-import { parseGitLabWebhook } from '../services/gitlab/parser';
-import { mentionGate } from '../services/gitlab/mention';
-import { processFromWebhook } from '../services/processing/processor';
-import { publishIssue } from '../services/processing/publisher';
+import { getConfig } from '../config.js';
+import logger from '../utils/logger.js';
+import { verifyWebhookRequest } from '../services/gitlab/auth.js';
+import { parseGitLabWebhook } from '../services/gitlab/parser.js';
+import { mentionGate } from '../services/gitlab/mention.js';
+import { processFromWebhook } from '../services/processing/processor.js';
+import { publishIssue } from '../services/processing/publisher.js';
 
 const config = getConfig();
 
