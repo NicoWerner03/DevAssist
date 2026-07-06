@@ -63,6 +63,16 @@ export function createGitLabWebhookRouter() {
       return res.status(202).json({ accepted: true, duplicate: true });
     }
 
+    if (!parsed.shouldProcess && parsed.ignoredReason === 'self-authored') {
+      logger.info('Webhook ignored - self-authored dev-assist note');
+      return res.status(202).json({ accepted: true, ignored: 'self-authored' });
+    }
+
+    if (!parsed.shouldProcess && parsed.ignoredReason === 'dev-assist-generated') {
+      logger.info('Webhook ignored - generated dev-assist note');
+      return res.status(202).json({ accepted: true, ignored: 'dev-assist-generated' });
+    }
+
     if (!parsed.shouldProcess) {
       logger.info('Webhook ignored – no @dev-assist mention');
       return res.status(202).json({ accepted: true, ignored: 'no-mention' });

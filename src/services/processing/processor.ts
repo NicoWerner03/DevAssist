@@ -110,6 +110,11 @@ export async function processFromWebhook(parsed: any) {
   const issueIid = parsed.issueIid;
   const extra = parsed.noteBody || parsed.description || '';
 
+  if (parsed.ignoredReason && parsed.ignoredReason !== 'no-mention') {
+    logger.info('Webhook ignored before processing', { projectId, issueIid, reason: parsed.ignoredReason });
+    return { ignored: true };
+  }
+
   // Re-apply the gate (defense in depth).
   // Defense in depth: parser.ts already applies the event-specific trigger rules.
   // Keep title/description/note support here for direct callers.

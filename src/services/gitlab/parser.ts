@@ -1,5 +1,7 @@
 import { mentionGate } from './mention.js';
 import { parseDevAssistCommand, DevAssistCommand } from './commands.js';
+import { getConfig } from '../../config.js';
+import { isDevAssistGeneratedNote } from './cleanup.js';
 
 export interface ParsedWebhook {
   kind: 'issue' | 'note' | 'other';
@@ -11,7 +13,30 @@ export interface ParsedWebhook {
   action?: string; // open, update, etc.
   raw: any;
   command: DevAssistCommand;
-  shouldProcess: boolean; // true only if leading mention present
+  shouldProcess: boolean;
+  ignoredReason?: 'no-mention' | 'self-authored' | 'dev-assist-generated';
+}
+
+function normalizeUsername(value: unknown): string {
+  return String(value || '').replace(/^@+/, '').trim().toLowerCase();
+}
+
+function webhookAuthorUsername(body: any): string {
+  return String(body?.user?.username || body?.user_username || '');
+}
+
+function isSelfAuthoredNote(kind: ParsedWebhook['kind'], body: any): boolean {
+  if (kind !== 'note' && body?.object_kind !== 'note') return false;
+
+  const botUsername = normalizeUsername(getConfig().devAssistBotUsername);
+  const authorUsername = normalizeUsername(webhookAuthorUsername(body));
+  return Boolean(botUsername && authorUsername && botUsername === authorUsername);
+}
+
+function isGeneratedDevAssistNote(kind: ParsedWebhook['kind'], body: any): boolean {
+  if (kind !== 'note' && body?.object_kind !== 'note') return false;
+
+  return isDevAssistGeneratedNote(body?.object_attributes || {});
 }
 
 export function parseGitLabWebhook(body: any): ParsedWebhook {
@@ -54,8 +79,19 @@ export function parseGitLabWebhook(body: any): ParsedWebhook {
     hasMention = mentionGate.hasMention(title) || mentionGate.hasMention(noteBody) || mentionGate.hasMention(description);
   }
 
+  const selfAuthored = isSelfAuthoredNote(kind, body);
+  const devAssistGenerated = isGeneratedDevAssistNote(kind, body);
+
   const textToCheck = noteBody || description || '';
   const command = hasMention ? parseDevAssistCommand(textToCheck) : 'process';
+  const shouldProcess = hasMention && !selfAuthored && !devAssistGenerated;
+  const ignoredReason = shouldProcess
+    ? undefined
+    : selfAuthored
+      ? 'self-authored'
+      : devAssistGenerated
+        ? 'dev-assist-generated'
+        : 'no-mention';
 
   return {
     kind: (kind === 'issue' || kind === 'note') ? kind : 'other',
@@ -67,6 +103,7 @@ export function parseGitLabWebhook(body: any): ParsedWebhook {
     action,
     raw: body,
     command,
-    shouldProcess: hasMention,
+    shouldProcess,
+    ignoredReason,
   };
 }

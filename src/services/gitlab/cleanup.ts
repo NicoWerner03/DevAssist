@@ -7,6 +7,13 @@ const DEV_ASSIST_MARKERS = [
   /Dev-Assist Context/i,
 ];
 
+export function isDevAssistGeneratedNote(note: any): boolean {
+  const body = String(note?.body || note?.note || '').trim();
+  if (!body) return false;
+
+  return DEV_ASSIST_MARKERS.some((re) => re.test(body));
+}
+
 export function isDeletableNote(note: any): boolean {
   if (!note || note.system) return false;
   const body = String(note.body || note.note || '').trim();
@@ -14,7 +21,7 @@ export function isDeletableNote(note: any): boolean {
 
   if (mentionGate.hasMention(body)) return true;
 
-  return DEV_ASSIST_MARKERS.some((re) => re.test(body));
+  return isDevAssistGeneratedNote(note);
 }
 
 export function filterDeletableNotes(notes: any[]): any[] {
