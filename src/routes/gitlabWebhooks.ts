@@ -64,17 +64,16 @@ export function createGitLabWebhookRouter() {
     }
 
     if (!parsed.shouldProcess) {
-      logger.info('Webhook ignored – no leading @dev-assist mention');
+      logger.info('Webhook ignored – no @dev-assist mention');
       return res.status(202).json({ accepted: true, ignored: 'no-mention' });
     }
 
-    // Extra visibility for issue descriptions (user wants tolerant recognition when @dev-assist appears at the beginning of the ticket description,
-    // regardless of font, size, bold (**), headings (##), lists, etc. — "hauptsache es steht @dev-assist")
+    // Extra visibility for issue descriptions.
     if (parsed.kind === 'issue' && parsed.description) {
       const full = String(parsed.description || '').trim();
       const firstLine = full.split(/\r?\n/).find(l => l.trim()) || '';
       const descStart = firstLine.slice(0, 150);
-      logger.info('Issue webhook received - first content line of description for mention check', { firstLine: descStart });
+      logger.info('Issue webhook received - first content line of description', { firstLine: descStart });
     }
 
     logger.info('Dispatching dev-assist command', { command: parsed.command, projectId: parsed.projectId, issueIid: parsed.issueIid });

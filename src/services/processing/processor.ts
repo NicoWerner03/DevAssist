@@ -111,14 +111,15 @@ export async function processFromWebhook(parsed: any) {
   const extra = parsed.noteBody || parsed.description || '';
 
   // Re-apply the gate (defense in depth).
-  // We use the tolerant hasMention (supports mention in first content line of description)
-  // so @dev-assist at/near the start of an issue description is not ignored.
+  // Defense in depth: parser.ts already applies the event-specific trigger rules.
+  // Keep title/description/note support here for direct callers.
   const hasLeadingMention = parsed.shouldProcess ||
+    mentionGate.hasMention(parsed.title) ||
     mentionGate.hasMention(parsed.noteBody) ||
     mentionGate.hasMention(parsed.description);
 
   if (!hasLeadingMention) {
-    logger.info('Webhook ignored – no leading mention', { projectId, issueIid });
+    logger.info('Webhook ignored – no mention', { projectId, issueIid });
     return { ignored: true };
   }
 

@@ -160,7 +160,7 @@ function collectStrings(value: unknown, out: string[] = []): string[] {
 
 function extractSummaryText(output: string): string {
   const cleaned = stripAnsi(output).trim();
-  const candidates: string[] = [cleaned];
+  const candidates: string[] = [];
 
   try {
     candidates.push(...collectStrings(JSON.parse(cleaned)));
@@ -182,6 +182,7 @@ function extractSummaryText(output: string): string {
     .sort((a, b) => b.length - a.length)[0];
   if (markdown) return markdown;
 
+  if (cleaned.includes('## Technology Stack')) return cleaned;
   if (cleaned) return cleaned;
   throw new Error('opencode produced no repository summary output');
 }
@@ -246,9 +247,9 @@ async function summarizeRepositoryContextWithOpencode(context: string): Promise<
     'repo-summary',
     '--model',
     effectiveModel,
+    'Produce the repository summary now from the attached repository context file.',
     '--file',
     contextFile,
-    'Produce the repository summary now from the attached repository context file.',
   ];
   if (cfg.ai.reasoningEffort) {
     runArgs.push('--variant', cfg.ai.reasoningEffort);

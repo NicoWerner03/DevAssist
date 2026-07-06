@@ -6,6 +6,10 @@ import {
   ANALYSIS_PERSONA,
   getOpencodeAgentBasePrompt,
 } from './instructions.js';
+import {
+  removeAnsweredOpenQuestions,
+  renderPriorClarificationAnswersForPrompt,
+} from './clarifications.js';
 
 export interface TicketContextForAI {
   project?: any;
@@ -39,6 +43,11 @@ export function buildUserPrompt(ctx: TicketContextForAI): string {
   if (ctx.repositorySummary && ctx.repositorySummary.trim()) {
     parts.push('\n## Repository Summary');
     parts.push(ctx.repositorySummary.trim());
+  }
+  const priorClarificationAnswers = renderPriorClarificationAnswersForPrompt(ctx.comments);
+  if (priorClarificationAnswers) {
+    parts.push('\n## Prior Clarification Answers');
+    parts.push(priorClarificationAnswers);
   }
   if (ctx.comments && ctx.comments.length) {
     parts.push('\n## Recent Comments (for context)');
@@ -205,8 +214,8 @@ function extractSessionId(output: string): string | undefined {
   return match?.[1];
 }
 
-function runChild(bin: string, args: string[], options?: { cwd?: string; timeoutMs?: number }): Promise<{ stdout: string; stderr: string; code: number | null }> {
-  const { spawn } = require('child_process') as typeof import('child_process');
+async function runChild(bin: string, args: string[], options?: { cwd?: string; timeoutMs?: number }): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  const { spawn } = await import('child_process');
 
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, {
@@ -242,17 +251,19 @@ export function createAiService(): AiService {
 
   return {
     async analyzeTicket(ctx) {
+      let analysis: RequirementAnalysis;
+
       if (cfg.ai.provider === 'mock') {
         logger.info('Using mock AI analysis (provider=mock)');
-        return createMockAnalysis(ctx);
+        analysis = createMockAnalysis(ctx);
+      } else if (cfg.ai.provider === 'opencode') {
+        analysis = await analyzeWithOpencode(ctx);
+      } else {
+        logger.warn(`Unknown AI provider "${cfg.ai.provider}", falling back to mock`);
+        analysis = createMockAnalysis(ctx);
       }
 
-      if (cfg.ai.provider === 'opencode') {
-        return analyzeWithOpencode(ctx);
-      }
-
-      logger.warn(`Unknown AI provider "${cfg.ai.provider}", falling back to mock`);
-      return createMockAnalysis(ctx);
+      return removeAnsweredOpenQuestions(analysis, ctx.comments);
     },
   };
 }

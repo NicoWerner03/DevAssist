@@ -42,17 +42,16 @@ export function parseGitLabWebhook(body: any): ParsedWebhook {
     description = issue.description;
   }
 
-  // hasMention is tolerant: it accepts @dev-assist if it is at the start of the
-  // first content line of the description (Markdown formatting like **, ##, -, lists etc. is ignored).
-  // This means: as long as "@dev-assist" appears near the beginning of the Issue description,
-  // the webhook will NOT be ignored (user requirement).
+  // @dev-assist can be placed anywhere in the issue title, description, or
+  // comment body. For note events, only the note body triggers processing so
+  // regular follow-up comments on an already-mentioned issue do not retrigger it.
   let hasMention = false;
   if (kind === 'issue' || body?.object_attributes?.iid) {
-    hasMention = mentionGate.hasMention(description);
+    hasMention = mentionGate.hasMention(title) || mentionGate.hasMention(description);
   } else if (kind === 'note' || body?.object_kind === 'note') {
     hasMention = mentionGate.hasMention(noteBody);
   } else {
-    hasMention = mentionGate.hasMention(noteBody) || mentionGate.hasMention(description);
+    hasMention = mentionGate.hasMention(title) || mentionGate.hasMention(noteBody) || mentionGate.hasMention(description);
   }
 
   const textToCheck = noteBody || description || '';
