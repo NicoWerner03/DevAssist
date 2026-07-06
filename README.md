@@ -83,6 +83,7 @@ AI_PROVIDER=mock               # or opencode
 Expose the service (for GitLab to reach it):
 
 - Recommended: Cloudflare Tunnel (`cloudflared tunnel --url http://localhost:5000`)
+- Or set `START_TUNNEL=true` in `.env` to start that tunnel automatically with `npm run dev`.
 - Add the resulting `https://...trycloudflare.com/webhooks/gitlab/issues` (or your permanent hostname) as a webhook in the GitLab project (Issues and Note events, Secret = the signing secret).
 
 ## Using Real AI

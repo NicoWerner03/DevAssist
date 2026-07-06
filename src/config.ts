@@ -9,6 +9,7 @@ export interface Config {
   port: number;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   devAssistMention: string;
+  startTunnel: boolean;
 
   gitlab: {
     baseUrl: string;
@@ -50,6 +51,7 @@ export function getConfig(): Config {
   const logLevel = (getEnv('LOG_LEVEL', 'info') as Config['logLevel']) || 'info';
 
   const devAssistMention = getEnv('DEV_ASSIST_MENTION', '@dev-assist')!;
+  const startTunnel = getEnv('START_TUNNEL', 'false')!.toLowerCase() === 'true';
 
   const gitlab = {
     baseUrl: getEnv('GITLAB_BASE_URL', 'https://gitlab.com')!,
@@ -77,6 +79,7 @@ export function getConfig(): Config {
     port,
     logLevel,
     devAssistMention,
+    startTunnel,
     gitlab,
     webhookSigningSecret,
     ai,
