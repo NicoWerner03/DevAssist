@@ -1,19 +1,5 @@
 import { RequirementAnalysis } from './schema.js';
 
-export function renderGitLabComment(analysis: RequirementAnalysis): string {
-  const lines = [
-    '## Dev-Assist Proposal',
-    '',
-    `**Suggested title:** ${analysis.title || '(see full context)'}`,
-    '',
-    'I analyzed the ticket and prepared a structured version.',
-    'Reply with `@dev-assist publish` to apply it (this comment and the conversation will be cleaned up).',
-    '',
-    'Full structured context is available in the attached context file (or will be written alongside).',
-  ];
-  return lines.join('\n');
-}
-
 export function renderClarificationComment(analysis: RequirementAnalysis): string {
   const questions = (analysis.openQuestions || []).filter(Boolean);
 
@@ -43,42 +29,6 @@ export function renderClarificationComment(analysis: RequirementAnalysis): strin
   lines.push(`(Current best guess for title: ${analysis.title || '(unknown)'})`);
 
   return lines.join('\n');
-}
-
-export function getClarificationReplyTemplate(): string {
-  return `@dev-assist
-
-**Answers to your questions:**
-
-- **Specific purpose / feature:**  
-  [Briefly describe what exactly should be built or changed.]
-
-- **Key requirements / user stories / acceptance criteria:**  
-  - As a [role] I want [goal], so that [benefit].
-  - [Additional user story]
-  - Acceptance Criteria:
-    - [ ] ...
-    - [ ] ...
-
-- **Type:**  
-  [ ] Bugfix  
-  [ ] New feature  
-  [ ] Refactoring / Tech Debt  
-  [ ] Other: ...
-
-- **Technical constraints / dependencies / approaches:**  
-  - Tech stack / affected services: ...
-  - Existing dependencies: ...
-  - Preferred approach (if known): ...
-  - What should explicitly NOT be done: ...
-
-**Additional useful information:**
-- Current behavior (for bugs)
-- Expected behavior
-- Affected files / components (if known)
-- Links to related issues, docs or code
-- Priority / Deadline
-`;
 }
 
 const MISSING_INFORMATION = 'Not enough information available yet.';

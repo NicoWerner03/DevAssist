@@ -4,8 +4,8 @@ import { createAiService } from '../ai/service.js';
 import { renderClarificationComment, renderRequirementAnalysis } from '../ai/formatter.js';
 import type { RequirementAnalysis } from '../ai/schema.js';
 import { writeContextFile } from '../context/writer.js';
-import { mentionGate } from '../gitlab/mention.js';
 import { createRepositorySummaryProvider } from '../repositorySummary.js';
+import type { ParsedWebhook } from '../gitlab/parser.js';
 
 const gitlab = createGitLabClient();
 const ai = createAiService();
@@ -42,7 +42,6 @@ export async function processIssue(projectId: string | number, issueIid: string 
 
   // Build a compact context for the AI (fallback to webhook data if fetch failed)
   const ctx = {
-    project: { id: projectId },
     issue: { ...issue, iid: issueIid },
     comments: notes,
     rawText: extraText,
@@ -62,7 +61,7 @@ export async function processIssue(projectId: string | number, issueIid: string 
     }
     throw aiErr;
   }
-  log.info('AI analysis complete', { descriptionItems: analysis.description.length });
+  log.info('AI analysis complete', { descriptionItems: analysis.description?.length || 0 });
 
   const { fullContext, metadata } = prepareAnalysisOutput(analysis);
 
@@ -112,29 +111,10 @@ export async function processIssue(projectId: string | number, issueIid: string 
   return { analysis, contextFile: filePath, postedNoteId };
 }
 
-export async function processFromWebhook(parsed: any) {
-  // parsed comes from parser.ts
+export async function processFromWebhook(parsed: ParsedWebhook) {
   const projectId = parsed.projectId;
   const issueIid = parsed.issueIid;
   const extra = parsed.noteBody || parsed.description || '';
-
-  if (parsed.ignoredReason && parsed.ignoredReason !== 'no-mention') {
-    logger.info('Webhook ignored before processing', { projectId, issueIid, reason: parsed.ignoredReason });
-    return { ignored: true };
-  }
-
-  // Re-apply the gate (defense in depth).
-  // Defense in depth: parser.ts already applies the event-specific trigger rules.
-  // Keep title/description/note support here for direct callers.
-  const hasLeadingMention = parsed.shouldProcess ||
-    mentionGate.hasMention(parsed.title) ||
-    mentionGate.hasMention(parsed.noteBody) ||
-    mentionGate.hasMention(parsed.description);
-
-  if (!hasLeadingMention) {
-    logger.info('Webhook ignored – no mention', { projectId, issueIid });
-    return { ignored: true };
-  }
 
   return processIssue(projectId, issueIid, extra);
 }

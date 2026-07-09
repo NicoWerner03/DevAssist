@@ -2,10 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { createHealthRouter } from './routes/health.js';
 import { createIssueRouter } from './routes/issues.js';
 import { createGitLabWebhookRouter } from './routes/gitlabWebhooks.js';
-import { getConfig } from './config.js';
 import logger from './utils/logger.js';
-
-const config = getConfig();
 
 export function createApp() {
   const app = express();

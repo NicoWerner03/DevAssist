@@ -1,9 +1,15 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { spawn } from 'child_process';
 import { getConfig } from '../config.js';
 import logger from '../utils/logger.js';
 import { createGitLabClient, GitLabClient, GitLabRepoTreeItem } from './gitlab/client.js';
+import {
+  collectStrings,
+  findOpencodeBin,
+  getEffectiveModel,
+  runCommand,
+  stripAnsi,
+} from './ai/opencodeRuntime.js';
 
 const KEY_FILES = [
   'package.json',
@@ -128,36 +134,6 @@ export async function collectRepositoryContext(
   ].join('\n');
 }
 
-export function createRepositorySummaryPrompt(context: string): string {
-  return [
-    'Produce the repository summary now, following your instructions and section structure exactly.',
-    'Base every statement strictly on the repository data provided below. Return only the Markdown summary.',
-    '',
-    '--- REPOSITORY DATA ---',
-    context,
-    '--- END REPOSITORY DATA ---',
-  ].join('\n');
-}
-
-function stripAnsi(text: string): string {
-  return text.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '');
-}
-
-function collectStrings(value: unknown, out: string[] = []): string[] {
-  if (typeof value === 'string') {
-    out.push(value);
-    return out;
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) collectStrings(item, out);
-    return out;
-  }
-  if (value && typeof value === 'object') {
-    for (const item of Object.values(value)) collectStrings(item, out);
-  }
-  return out;
-}
-
 function extractSummaryText(output: string): string {
   const cleaned = stripAnsi(output).trim();
   const candidates: string[] = [];
@@ -185,23 +161,6 @@ function extractSummaryText(output: string): string {
   if (cleaned.includes('## Technology Stack')) return cleaned;
   if (cleaned) return cleaned;
   throw new Error('opencode produced no repository summary output');
-}
-
-async function findOpencodeBin(): Promise<string> {
-  const npmOpencodeExe = process.platform === 'win32' && process.env.APPDATA
-    ? path.join(process.env.APPDATA, 'npm', 'node_modules', 'opencode-ai', 'bin', 'opencode.exe')
-    : '';
-
-  if (npmOpencodeExe) {
-    try {
-      await fs.access(npmOpencodeExe);
-      return npmOpencodeExe;
-    } catch {
-      // Fall through to PATH lookup.
-    }
-  }
-
-  return process.platform === 'win32' ? 'opencode.cmd' : 'opencode';
 }
 
 async function copyPromptIfExists(source: string, target: string): Promise<void> {
@@ -235,8 +194,7 @@ async function summarizeRepositoryContextWithOpencode(context: string): Promise<
   await fs.writeFile(contextFile, context, 'utf8');
 
   const bin = await findOpencodeBin();
-  const configuredModel = cfg.ai.model || 'xai/grok-3-latest';
-  const effectiveModel = configuredModel.includes('/') ? configuredModel : `xai/${configuredModel}`;
+  const effectiveModel = getEffectiveModel(cfg.ai.model);
   const runArgs = [
     'run',
     '--dir',
@@ -260,45 +218,17 @@ async function summarizeRepositoryContextWithOpencode(context: string): Promise<
     timeoutMs: cfg.ai.timeoutMs,
   });
 
-  return new Promise((resolve, reject) => {
-    const child = spawn(bin, runArgs, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env },
-      shell: process.platform === 'win32' && /\.cmd$/i.test(bin),
-    });
-
-    let stdout = '';
-    let stderr = '';
-    child.stdout?.on('data', d => { stdout += d.toString(); });
-    child.stderr?.on('data', d => { stderr += d.toString(); });
-    child.stdin.end();
-
-    const timeout = setTimeout(() => {
-      try { child.kill('SIGKILL'); } catch {}
-      reject(new Error(`opencode repository summary timed out after ${cfg.ai.timeoutMs}ms`));
-    }, cfg.ai.timeoutMs);
-
-    child.on('error', (err: any) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-
-    child.on('close', (code) => {
-      clearTimeout(timeout);
-      if (stderr.trim()) {
-        logger.warn('opencode repository summary stderr', { stderr: stderr.trim().slice(0, 500) });
-      }
-      if (code !== 0) {
-        logger.warn('opencode repository summary exited with non-zero code', { code });
-      }
-
-      try {
-        resolve(extractSummaryText(stdout));
-      } catch (e) {
-        reject(e);
-      }
-    });
+  const { stdout, stderr, code } = await runCommand(bin, runArgs, {
+    timeoutMs: cfg.ai.timeoutMs,
   });
+  if (stderr.trim()) {
+    logger.warn('opencode repository summary stderr', { stderr: stderr.trim().slice(0, 500) });
+  }
+  if (code !== 0) {
+    logger.warn('opencode repository summary exited with non-zero code', { code });
+  }
+
+  return extractSummaryText(stdout);
 }
 
 export function createRepositorySummaryProvider(options: RepositorySummaryProviderOptions = {}) {

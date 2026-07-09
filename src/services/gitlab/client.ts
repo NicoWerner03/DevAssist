@@ -2,6 +2,11 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { getConfig } from '../../config.js';
 import logger from '../../utils/logger.js';
+import {
+  buildGlabApiArgs,
+  parseGlabOutput,
+  type GlabOutputFormat,
+} from './glab.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -70,83 +75,22 @@ function getBaseUrl(): string {
   return cfg.gitlab.baseUrl.replace(/\/$/, '');
 }
 
-async function glabApi(args: string[]): Promise<any> {
+async function glabApi(args: string[], output: 'text'): Promise<string>;
+async function glabApi(args: string[], output?: 'json'): Promise<any>;
+async function glabApi(args: string[], output: GlabOutputFormat = 'json'): Promise<any> {
   const cfg = getConfig();
+  const cmdArgs = buildGlabApiArgs(args, output, cfg.gitlab.glabHostname);
 
-  // Normalize paths: ensure we use /projects/... form (GitLab REST requires it).
-  // glab accepts both "projects/..." and "/projects/...". We strip leading / for cleaner logs
-  // and to match the examples you showed (glab api projects/<id>/issues/<iid>/...).
-  const normalizedArgs = args.map((arg) => {
-    if (arg.startsWith('/projects/')) return arg.slice(1);
-    if (arg.startsWith('/') && /^\/\d+/.test(arg)) {
-      // Old/broken form without /projects/ — fix it (should no longer happen)
-      return `projects${arg}`;
-    }
-    return arg;
-  });
-
-  const cmdArgs = ['api', ...normalizedArgs, '--output', 'json'];
-  let glabHostname = cfg.gitlab.glabHostname;
-  if (glabHostname) {
-    // Always sanitize: glab --hostname wants bare host only (e.g. "gitlab.com")
-    glabHostname = String(glabHostname)
-      .replace(/^https?:\/\//i, '')
-      .replace(/\/$/, '')
-      .trim();
-  }
-
-  if (glabHostname && !glabHostname.includes('://') && glabHostname !== 'gitlab.com') {
-    cmdArgs.push('--hostname', glabHostname);
-  } else if (glabHostname && glabHostname === 'gitlab.com') {
-    // gitlab.com is the default for glab, no need to specify --hostname
-  } else if (glabHostname) {
-    logger.warn('GITLAB_GLAB_HOSTNAME looks invalid, ignoring it. Use bare hostname like "gitlab.com"');
-  }
-
-  logger.debug('glab api call', { args: cmdArgs.filter(a => !a.includes('token')) });
+  logger.debug('glab api call', { args: cmdArgs.filter(a => !a.includes('token')), output });
   try {
     const { stdout, stderr } = await execFileAsync('glab', cmdArgs, { maxBuffer: 10 * 1024 * 1024 });
     if (stderr && stderr.trim()) {
       logger.warn('glab stderr', { stderr: stderr.trim().slice(0, 300) });
     }
-    return JSON.parse(stdout || 'null');
+    return parseGlabOutput(stdout, output);
   } catch (err: any) {
     const msg = err?.stderr?.toString() || err.message || String(err);
     logger.error('glab api failed', { command: `glab ${cmdArgs.join(' ')}`, error: msg.trim() });
-    throw new Error(`glab command failed: ${msg.trim()}`);
-  }
-}
-
-async function glabApiRaw(args: string[]): Promise<string> {
-  const cfg = getConfig();
-  const normalizedArgs = args.map((arg) => {
-    if (arg.startsWith('/projects/')) return arg.slice(1);
-    if (arg.startsWith('/') && /^\/\d+/.test(arg)) return `projects${arg}`;
-    return arg;
-  });
-
-  const cmdArgs = ['api', ...normalizedArgs];
-  let glabHostname = cfg.gitlab.glabHostname;
-  if (glabHostname) {
-    glabHostname = String(glabHostname)
-      .replace(/^https?:\/\//i, '')
-      .replace(/\/$/, '')
-      .trim();
-  }
-  if (glabHostname && !glabHostname.includes('://') && glabHostname !== 'gitlab.com') {
-    cmdArgs.push('--hostname', glabHostname);
-  }
-
-  logger.debug('glab raw api call', { args: cmdArgs.filter(a => !a.includes('token')) });
-  try {
-    const { stdout, stderr } = await execFileAsync('glab', cmdArgs, { maxBuffer: 10 * 1024 * 1024 });
-    if (stderr && stderr.trim()) {
-      logger.warn('glab stderr', { stderr: stderr.trim().slice(0, 300) });
-    }
-    return stdout;
-  } catch (err: any) {
-    const msg = err?.stderr?.toString() || err.message || String(err);
-    logger.error('glab raw api failed', { command: `glab ${cmdArgs.join(' ')}`, error: msg.trim() });
     throw new Error(`glab command failed: ${msg.trim()}`);
   }
 }
@@ -260,7 +204,7 @@ export function createGitLabClient(): GitLabClient {
       const path = `/projects/${pid}/repository/files/${encodedPath}/raw${refQuery}`;
       try {
         if (useGlab) {
-          return await glabApiRaw([path]);
+          return await glabApi([path], 'text');
         }
         const res = await fetch(`${getBaseUrl()}/api/v4${path}`, {
           headers: cfg.gitlab.token ? { 'PRIVATE-TOKEN': cfg.gitlab.token } : {},

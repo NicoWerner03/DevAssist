@@ -1,18 +1,20 @@
 import { getConfig } from '../../config.js';
 import logger from '../../utils/logger.js';
 import { RequirementAnalysis, parseAnalysisJson } from './schema.js';
-import {
-  getFullAnalysisInstructions,
-  ANALYSIS_PERSONA,
-  getOpencodeAgentBasePrompt,
-} from './instructions.js';
+import { getFullAnalysisInstructions } from './instructions.js';
 import {
   removeAnsweredOpenQuestions,
   renderPriorClarificationAnswersForPrompt,
 } from './clarifications.js';
+import {
+  collectStrings,
+  findOpencodeBin,
+  getEffectiveModel,
+  runCommand,
+  stripAnsi,
+} from './opencodeRuntime.js';
 
 export interface TicketContextForAI {
-  project?: any;
   issue?: any;
   comments?: any[];
   rawText?: string; // fallback
@@ -82,10 +84,6 @@ function createMockAnalysis(ctx: TicketContextForAI): RequirementAnalysis {
   };
 }
 
-function stripAnsi(text: string): string {
-  return text.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '');
-}
-
 function extractJsonObjects(text: string): string[] {
   const objects: string[] = [];
   let start = -1;
@@ -125,24 +123,6 @@ function extractJsonObjects(text: string): string[] {
   }
 
   return objects;
-}
-
-function collectStrings(value: unknown, out: string[] = []): string[] {
-  if (typeof value === 'string') {
-    out.push(value);
-    return out;
-  }
-
-  if (Array.isArray(value)) {
-    for (const item of value) collectStrings(item, out);
-    return out;
-  }
-
-  if (value && typeof value === 'object') {
-    for (const item of Object.values(value)) collectStrings(item, out);
-  }
-
-  return out;
 }
 
 function tryParseAnalysisFromText(text: string): RequirementAnalysis | undefined {
@@ -207,38 +187,6 @@ function extractSessionId(output: string): string | undefined {
   return match?.[1];
 }
 
-async function runChild(bin: string, args: string[], options?: { cwd?: string; timeoutMs?: number }): Promise<{ stdout: string; stderr: string; code: number | null }> {
-  const { spawn } = await import('child_process');
-
-  return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, {
-      cwd: options?.cwd,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env },
-      shell: process.platform === 'win32' && /\.cmd$/i.test(bin),
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout?.on('data', (d) => { stdout += d.toString(); });
-    child.stderr?.on('data', (d) => { stderr += d.toString(); });
-    child.on('error', reject);
-
-    const timeout = options?.timeoutMs
-      ? setTimeout(() => {
-          try { child.kill('SIGKILL'); } catch {}
-          reject(new Error(`Command timed out after ${options.timeoutMs}ms: ${bin} ${args.join(' ')}`));
-        }, options.timeoutMs)
-      : undefined;
-
-    child.on('close', (code) => {
-      if (timeout) clearTimeout(timeout);
-      resolve({ stdout, stderr, code });
-    });
-  });
-}
-
 export function createAiService(): AiService {
   const cfg = getConfig();
 
@@ -264,7 +212,6 @@ export function createAiService(): AiService {
 async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<RequirementAnalysis> {
   const fs = await import('fs/promises');
   const pathMod = await import('path');
-  const { spawn } = await import('child_process');
 
   const promptText = buildUserPrompt(ctx);
   const cfg = getConfig();
@@ -285,27 +232,14 @@ async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<Requirement
   ).catch((e: any) => {
     if (e.code !== 'ENOENT') throw e;
   });
+  const promptFile = pathMod.join(runtimeDir, 'analysis-context.txt');
+  await fs.writeFile(promptFile, promptText, 'utf8');
 
-  const npmOpencodeExe = process.platform === 'win32' && process.env.APPDATA
-    ? pathMod.join(process.env.APPDATA, 'npm', 'node_modules', 'opencode-ai', 'bin', 'opencode.exe')
-    : '';
-
-  let hasNpmOpencodeExe = false;
-  if (npmOpencodeExe) {
-    try {
-      await fs.access(npmOpencodeExe);
-      hasNpmOpencodeExe = true;
-    } catch {}
-  }
-
-  const bin = hasNpmOpencodeExe
-    ? npmOpencodeExe
-    : (process.platform === 'win32' ? 'opencode.cmd' : 'opencode');
+  const bin = await findOpencodeBin();
 
   // Align model + reasoning effort with the direct 'xai' provider path for consistent behavior.
   // opencode.json provides the base config (and agent prompt), but we override via CLI flags here.
-  const configuredModel = cfg.ai.model || 'xai/grok-3-latest';
-  const effectiveModel = configuredModel.includes('/') ? configuredModel : `xai/${configuredModel}`;
+  const effectiveModel = getEffectiveModel(cfg.ai.model);
   const runArgs = [
     'run',
     '--dir',
@@ -316,7 +250,9 @@ async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<Requirement
     'dev-assist-analyzer',
     '--model',
     effectiveModel,
-    promptText,
+    'Analyze the attached GitLab issue context and return the required JSON object.',
+    '--file',
+    promptFile,
   ];
   if (cfg.ai.reasoningEffort) {
     runArgs.push('--variant', cfg.ai.reasoningEffort);
@@ -329,81 +265,47 @@ async function analyzeWithOpencode(ctx: TicketContextForAI): Promise<Requirement
     timeoutMs: cfg.ai.timeoutMs,
   });
 
-  return new Promise((resolve, reject) => {
-    const child = spawn(bin, runArgs, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env },
-      shell: process.platform === 'win32' && /\.cmd$/i.test(bin),
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout?.on('data', (d) => { stdout += d.toString(); });
-    child.stderr?.on('data', (d) => { stderr += d.toString(); });
-
-    child.stdin.end();
-
-    const timeout = setTimeout(() => {
-      logger.warn('opencode analysis timed out — killing process', {
-        timeoutMs: cfg.ai.timeoutMs,
-      });
-      try { child.kill('SIGKILL'); } catch {}
-      reject(new Error(`opencode analysis timed out after ${cfg.ai.timeoutMs}ms`));
-    }, cfg.ai.timeoutMs);
-
-    child.on('error', (err: any) => {
-      clearTimeout(timeout);
-      logger.error('opencode spawn failed', { error: err.message });
-      reject(err);
-    });
-
-    child.on('close', async (code) => {
-      clearTimeout(timeout);
-
-      if (stderr && stderr.trim()) {
-        logger.warn('opencode stderr', { stderr: stderr.trim().slice(0, 500) });
-      }
-
-      const output = (stdout || '').trim();
-
-      if (code !== 0) {
-        logger.warn('opencode exited with non-zero code', { code });
-      }
-
-      if (!output) {
-        logger.warn('opencode produced no stdout');
-        return reject(new Error('opencode produced no stdout output'));
-      }
-
-      logger.info('opencode response received', { chars: output.length, exitCode: code });
-
-      try {
-        let analysis: RequirementAnalysis;
-
-        try {
-          analysis = parseOpencodeAnalysisOutput(output);
-        } catch (streamParseErr: any) {
-          const sessionId = extractSessionId(output);
-          if (!sessionId) throw streamParseErr;
-
-          logger.info('opencode JSON stream did not include final text; exporting session', { sessionId });
-          const exported = await runChild(bin, ['export', sessionId], { cwd: runtimeDir, timeoutMs: 30000 });
-          const exportStderr = exported.stderr.trim();
-          if (exportStderr && !/^Exporting session:/i.test(stripAnsi(exportStderr))) {
-            logger.warn('opencode export stderr', { stderr: exported.stderr.trim().slice(0, 500) });
-          }
-          analysis = parseOpencodeAnalysisOutput(exported.stdout);
-        }
-
-        resolve(analysis);
-      } catch (parseErr: any) {
-        logger.error('Failed to parse opencode output as structured JSON', {
-          error: parseErr.message,
-          preview: output.slice(0, 300),
-        });
-        reject(parseErr);
-      }
-    });
+  const result = await runCommand(bin, runArgs, { timeoutMs: cfg.ai.timeoutMs }).catch((error: Error) => {
+    logger.error('opencode execution failed', { error: error.message });
+    throw error;
   });
+
+  const { stdout, stderr, code } = result;
+  if (stderr.trim()) {
+    logger.warn('opencode stderr', { stderr: stderr.trim().slice(0, 500) });
+  }
+
+  const output = stdout.trim();
+  if (code !== 0) {
+    logger.warn('opencode exited with non-zero code', { code });
+  }
+  if (!output) {
+    logger.warn('opencode produced no stdout');
+    throw new Error('opencode produced no stdout output');
+  }
+
+  logger.info('opencode response received', { chars: output.length, exitCode: code });
+
+  try {
+    try {
+      return parseOpencodeAnalysisOutput(output);
+    } catch (streamParseErr: any) {
+      const sessionId = extractSessionId(output);
+      if (!sessionId) throw streamParseErr;
+
+      logger.info('opencode JSON stream did not include final text; exporting session', { sessionId });
+      const exported = await runCommand(bin, ['export', sessionId], { cwd: runtimeDir, timeoutMs: 30000 });
+      const exportStderr = exported.stderr.trim();
+      if (exportStderr && !/^Exporting session:/i.test(stripAnsi(exportStderr))) {
+        logger.warn('opencode export stderr', { stderr: exportStderr.slice(0, 500) });
+      }
+      return parseOpencodeAnalysisOutput(exported.stdout);
+    }
+  } catch (parseErr: any) {
+    logger.error('Failed to parse opencode output as structured JSON', {
+      error: parseErr.message,
+      preview: output.slice(0, 300),
+    });
+    throw parseErr;
+  }
 }

@@ -85,7 +85,6 @@ export function extractPriorClarificationAnswers(comments: any[] | undefined): P
     }
 
     if (!pendingQuestions.length) continue;
-    if (isDevAssistGeneratedComment(body)) continue;
     if (!mentionGate.hasMention(body)) continue;
 
     answers.push({

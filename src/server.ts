@@ -37,7 +37,6 @@ const server = app.listen(config.port, () => {
       baseUrl: config.gitlab.baseUrl,
       useGlab: config.gitlab.useGlab,
       hasToken: Boolean(config.gitlab.token),
-      writeBack: config.gitlab.writeBack,
     },
     contextOutputDir: config.contextOutputDir,
   });

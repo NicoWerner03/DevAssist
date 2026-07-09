@@ -3,7 +3,6 @@ import { getConfig } from '../config.js';
 import logger from '../utils/logger.js';
 import { verifyWebhookRequest } from '../services/gitlab/auth.js';
 import { parseGitLabWebhook } from '../services/gitlab/parser.js';
-import { mentionGate } from '../services/gitlab/mention.js';
 import { processFromWebhook } from '../services/processing/processor.js';
 import { publishIssue } from '../services/processing/publisher.js';
 
@@ -63,19 +62,10 @@ export function createGitLabWebhookRouter() {
       return res.status(202).json({ accepted: true, duplicate: true });
     }
 
-    if (!parsed.shouldProcess && parsed.ignoredReason === 'self-authored') {
-      logger.info('Webhook ignored - self-authored dev-assist note');
-      return res.status(202).json({ accepted: true, ignored: 'self-authored' });
-    }
-
-    if (!parsed.shouldProcess && parsed.ignoredReason === 'dev-assist-generated') {
-      logger.info('Webhook ignored - generated dev-assist note');
-      return res.status(202).json({ accepted: true, ignored: 'dev-assist-generated' });
-    }
-
     if (!parsed.shouldProcess) {
-      logger.info('Webhook ignored – no @dev-assist mention');
-      return res.status(202).json({ accepted: true, ignored: 'no-mention' });
+      const ignored = parsed.ignoredReason ?? 'no-mention';
+      logger.info('Webhook ignored', { reason: ignored });
+      return res.status(202).json({ accepted: true, ignored });
     }
 
     // Extra visibility for issue descriptions.

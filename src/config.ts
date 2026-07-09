@@ -17,7 +17,6 @@ export interface Config {
     token?: string;
     useGlab: boolean;
     glabHostname?: string;
-    writeBack: boolean;
     requireSignature: boolean;
   };
 
@@ -39,14 +38,6 @@ function getEnv(name: string, fallback?: string): string | undefined {
   return v !== undefined && v !== '' ? v : fallback;
 }
 
-function requireEnv(name: string): string {
-  const v = process.env[name];
-  if (!v) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return v;
-}
-
 export function getConfig(): Config {
   const port = parseInt(getEnv('PORT', '5000')!, 10);
   const logLevel = (getEnv('LOG_LEVEL', 'info') as Config['logLevel']) || 'info';
@@ -63,7 +54,6 @@ export function getConfig(): Config {
     token: getEnv('GITLAB_TOKEN'),
     useGlab: getEnv('GITLAB_USE_GLAB', 'true')!.toLowerCase() === 'true',
     glabHostname: getEnv('GITLAB_GLAB_HOSTNAME'),
-    writeBack: getEnv('GITLAB_WRITE_BACK', 'true')!.toLowerCase() === 'true',
     requireSignature: getEnv('GITLAB_REQUIRE_SIGNATURE', 'false')!.toLowerCase() === 'true',
   };
 
