@@ -25,24 +25,12 @@ afterEach(() => {
 
 function analysisJson(): string {
   return JSON.stringify({
-    summary: 'Fallback analysis',
-    sourceBasis: 'ticket_text',
-    implementationTicket: {
-      title: 'Analyze via export fallback',
-      goal: 'Parse the exported OpenCode session when the JSON stream has no final text.',
-      scope: ['Use exported session output'],
-      outOfScope: [],
-      userStories: [],
-      functionalRequirements: [],
-      technicalApproach: [],
-      implementationTasks: [],
-      definitionOfDone: [],
-    },
+    title: 'Analyze via export fallback',
+    description: ['Parse the exported OpenCode session when the JSON stream has no final text.'],
     acceptanceCriteria: [],
-    technicalNotes: [],
+    technicalContext: [],
+    proposedSolution: [],
     openQuestions: [],
-    risks: [],
-    validationSteps: [],
   });
 }
 
@@ -113,7 +101,9 @@ describe('OpenCode AI service', () => {
       },
     });
 
-    assert.equal(analysis.summary, 'Fallback analysis');
-    assert.equal(analysis.implementationTicket.title, 'Analyze via export fallback');
+    assert.deepEqual(analysis.description, [
+      'Parse the exported OpenCode session when the JSON stream has no final text.',
+    ]);
+    assert.equal(analysis.title, 'Analyze via export fallback');
   });
 });

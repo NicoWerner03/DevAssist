@@ -1,80 +1,82 @@
-// Strict shape for the Dev-Assist structured ticket (per project description: "genau beschreibt wie das Json aussehen sollte")
-
-export interface ImplementationTicket {
-  title: string;
-  goal: string;
-  scope: string[];
-  outOfScope: string[];
-  userStories: string[];
-  functionalRequirements: string[];
-  technicalApproach: string[];
-  implementationTasks: string[]; // ordered, concrete
-  definitionOfDone: string[];
-}
-
 export interface RequirementAnalysis {
-  summary: string;
-  sourceBasis: 'acceptance_criteria' | 'ticket_text' | 'mixed';
-  implementationTicket: ImplementationTicket;
+  title: string;
+  description: string[];
   acceptanceCriteria: string[];
-  technicalNotes: string[];
+  technicalContext: string[];
+  proposedSolution: string[];
   openQuestions: string[];
-  risks: string[];
-  validationSteps: string[];
 }
+
+const REQUIRED_FIELDS = [
+  'title',
+  'description',
+  'acceptanceCriteria',
+  'technicalContext',
+  'proposedSolution',
+  'openQuestions',
+] as const;
+
+const ARRAY_FIELDS = [
+  'description',
+  'acceptanceCriteria',
+  'technicalContext',
+  'proposedSolution',
+  'openQuestions',
+] as const;
 
 export const REQUIREMENT_ANALYSIS_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: [
-    'summary', 'sourceBasis', 'implementationTicket',
-    'acceptanceCriteria', 'technicalNotes', 'openQuestions',
-    'risks', 'validationSteps',
-  ],
+  required: [...REQUIRED_FIELDS],
   properties: {
-    summary: { type: 'string' },
-    sourceBasis: { type: 'string', enum: ['acceptance_criteria', 'ticket_text', 'mixed'] },
-    implementationTicket: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['title', 'goal', 'scope', 'outOfScope', 'userStories', 'functionalRequirements', 'technicalApproach', 'implementationTasks', 'definitionOfDone'],
-      properties: {
-        title: { type: 'string' },
-        goal: { type: 'string' },
-        scope: { type: 'array', items: { type: 'string' } },
-        outOfScope: { type: 'array', items: { type: 'string' } },
-        userStories: { type: 'array', items: { type: 'string' } },
-        functionalRequirements: { type: 'array', items: { type: 'string' } },
-        technicalApproach: { type: 'array', items: { type: 'string' } },
-        implementationTasks: { type: 'array', items: { type: 'string' } },
-        definitionOfDone: { type: 'array', items: { type: 'string' } },
-      },
-    },
+    title: { type: 'string' },
+    description: { type: 'array', items: { type: 'string' } },
     acceptanceCriteria: { type: 'array', items: { type: 'string' } },
-    technicalNotes: { type: 'array', items: { type: 'string' } },
+    technicalContext: { type: 'array', items: { type: 'string' } },
+    proposedSolution: { type: 'array', items: { type: 'string' } },
     openQuestions: { type: 'array', items: { type: 'string' } },
-    risks: { type: 'array', items: { type: 'string' } },
-    validationSteps: { type: 'array', items: { type: 'string' } },
   },
 };
 
-export function validateRequirementAnalysis(obj: any): { valid: boolean; errors: string[]; value?: RequirementAnalysis } {
-  const errors: string[] = [];
-  if (!obj || typeof obj !== 'object') {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function validateRequirementAnalysis(
+  value: unknown,
+): { valid: boolean; errors: string[]; value?: RequirementAnalysis } {
+  if (!isRecord(value)) {
     return { valid: false, errors: ['root is not an object'] };
   }
-  const required = REQUIREMENT_ANALYSIS_JSON_SCHEMA.required as string[];
-  for (const k of required) {
-    if (!(k in obj)) errors.push(`missing required field: ${k}`);
+
+  const errors: string[] = [];
+  const allowedFields = new Set<string>(REQUIRED_FIELDS);
+
+  for (const field of REQUIRED_FIELDS) {
+    if (!(field in value)) errors.push(`missing required field: ${field}`);
   }
-  if (obj.implementationTicket && typeof obj.implementationTicket === 'object') {
-    const itReq = REQUIREMENT_ANALYSIS_JSON_SCHEMA.properties.implementationTicket.required;
-    for (const k of itReq) {
-      if (!(k in obj.implementationTicket)) errors.push(`implementationTicket missing: ${k}`);
+  for (const field of Object.keys(value)) {
+    if (!allowedFields.has(field)) errors.push(`unexpected field: ${field}`);
+  }
+
+  if ('title' in value && typeof value.title !== 'string') {
+    errors.push('title must be a string');
+  }
+
+  for (const field of ARRAY_FIELDS) {
+    if (!(field in value)) continue;
+    const items = value[field];
+    if (!Array.isArray(items)) {
+      errors.push(`${field} must be an array`);
+      continue;
     }
+    items.forEach((item, index) => {
+      if (typeof item !== 'string') errors.push(`${field}[${index}] must be a string`);
+    });
   }
+
   return errors.length === 0
-    ? { valid: true, errors: [], value: obj as RequirementAnalysis }
+    ? { valid: true, errors: [], value: value as unknown as RequirementAnalysis }
     : { valid: false, errors };
 }
 

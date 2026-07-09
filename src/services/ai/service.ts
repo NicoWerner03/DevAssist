@@ -63,33 +63,22 @@ function createMockAnalysis(ctx: TicketContextForAI): RequirementAnalysis {
   const issue = ctx.issue || {};
   const title = issue.title || 'Improve feature';
   return {
-    summary: `Structured version of: ${title}. Derived from the provided description and comments.`,
-    sourceBasis: 'ticket_text',
-    implementationTicket: {
-      title: title.length > 80 ? title.slice(0, 77) + '...' : title,
-      goal: 'Deliver the requested capability in a clean, testable way.',
-      scope: ['Core functionality as described', 'Basic validation and error handling'],
-      outOfScope: ['UI/UX redesign', 'Performance optimizations beyond the scope of the ticket'],
-      userStories: ['As a user, I can ... (to be refined from open questions if any)'],
-      functionalRequirements: ['The system must support the main flow described in the ticket'],
-      technicalApproach: ['Implement in the existing service layer', 'Add unit tests for new paths'],
-      implementationTasks: [
-        '1. Update API route / handler to support the new behavior',
-        '2. Add validation and error mapping',
-        '3. Write / update unit tests',
-        '4. Update documentation if user-facing',
-      ],
-      definitionOfDone: [
-        'All functional requirements implemented and tested',
-        'No new open questions remain',
-        'Passes existing test suite + new tests',
-      ],
-    },
-    acceptanceCriteria: ['Feature works end-to-end for the happy path', 'Error cases are handled gracefully'],
-    technicalNotes: ['Keep changes minimal and focused on the ticket description'],
+    title: title.length > 80 ? `${title.slice(0, 77)}...` : title,
+    description: [
+      'Deliver the behavior requested in the ticket.',
+      'Keep the result aligned with the stated requirements and acceptance criteria.',
+    ],
+    acceptanceCriteria: [
+      'The delivered behavior matches the requirements stated in the ticket.',
+      'The observable acceptance criteria supplied in the ticket are satisfied.',
+    ],
+    technicalContext: [],
+    proposedSolution: [
+      'Review the requested behavior and any supplied constraints.',
+      'Implement the requested behavior according to the confirmed requirements.',
+      'Verify the result against the acceptance criteria stated in the ticket.',
+    ],
     openQuestions: ['Are there any acceptance criteria or edge cases not mentioned?'],
-    risks: ['Scope creep if additional requirements are discovered during implementation'],
-    validationSteps: ['Manual test of the main flow', 'Run automated test suite'],
   };
 }
 
@@ -165,7 +154,11 @@ function tryParseAnalysisFromText(text: string): RequirementAnalysis | undefined
   ];
 
   for (const candidate of candidates) {
-    if (!candidate || !candidate.includes('implementationTicket')) continue;
+    if (!candidate) continue;
+    const hasCompactContract = candidate.includes('"description"')
+      && candidate.includes('"technicalContext"')
+      && candidate.includes('"proposedSolution"');
+    if (!hasCompactContract) continue;
 
     try {
       return parseAnalysisJson(candidate);

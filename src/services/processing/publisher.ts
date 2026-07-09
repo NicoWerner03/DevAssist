@@ -19,13 +19,25 @@ function extractTitleFromMarkdown(markdown: string): string | undefined {
   return undefined;
 }
 
-function renderPublishedDescription(markdown: string): string {
+export function renderPublishedDescription(markdown: string): string {
   return markdown
     .replace(/\n## Ticket\s*\n+\| Field \| Value \|\s*\n\| --- \| --- \|\s*\n(?:\|.*\|\s*\n)+/i, '\n')
     .replace(/\n### Title\s*\n+[\s\S]*?(?=\n### Goal\b)/i, '\n')
     .replace(/\n\*\*Title:\*\*[^\n]*\n+/i, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim() + '\n';
+}
+
+export function preparePublishedIssueUpdate(
+  markdown: string,
+  metadata: { title?: string } = {},
+): { description: string; title?: string } {
+  const title = metadata.title?.trim() || extractTitleFromMarkdown(markdown);
+  const updates: { description: string; title?: string } = {
+    description: renderPublishedDescription(markdown),
+  };
+  if (title) updates.title = title;
+  return updates;
 }
 
 export async function publishIssue(
@@ -39,7 +51,7 @@ export async function publishIssue(
   // 1. Read the previously written structured context
   const fullMarkdown = await readContextFile(projectId, issueIid);
   const metadata = await readContextMetadata(projectId, issueIid);
-  const descriptionMarkdown = renderPublishedDescription(fullMarkdown);
+  const baseUpdates = preparePublishedIssueUpdate(fullMarkdown, metadata);
 
   // 2. Load current notes and decide what to delete
   const notes = await gitlab.listNotes(projectId, issueIid);
@@ -63,14 +75,8 @@ export async function publishIssue(
 
   // 4. Update the issue with the clean structured content.
   // The generated ticket title belongs in GitLab's issue title, not in the description body.
-  const title = metadata.title?.trim() || extractTitleFromMarkdown(fullMarkdown);
-  const baseUpdates: Record<string, any> = { description: descriptionMarkdown };
-  if (title) {
-    baseUpdates.title = title;
-  }
-
   await gitlab.updateIssue(projectId, issueIid, baseUpdates);
-  log.info('Issue updated with structured content', { titleUpdated: Boolean(title) });
+  log.info('Issue updated with structured content', { titleUpdated: Boolean(baseUpdates.title) });
 
   // 5. Optional additional updates (state_event=close, add_labels, remove_labels, assignee_ids, etc.)
   //    This is where you can now do things like:

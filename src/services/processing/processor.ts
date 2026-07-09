@@ -1,8 +1,8 @@
-import { getConfig } from '../../config.js';
 import logger from '../../utils/logger.js';
 import { createGitLabClient } from '../gitlab/client.js';
 import { createAiService } from '../ai/service.js';
 import { renderClarificationComment, renderRequirementAnalysis } from '../ai/formatter.js';
+import type { RequirementAnalysis } from '../ai/schema.js';
 import { writeContextFile } from '../context/writer.js';
 import { mentionGate } from '../gitlab/mention.js';
 import { createRepositorySummaryProvider } from '../repositorySummary.js';
@@ -10,6 +10,16 @@ import { createRepositorySummaryProvider } from '../repositorySummary.js';
 const gitlab = createGitLabClient();
 const ai = createAiService();
 const repositorySummary = createRepositorySummaryProvider({ gitlab });
+
+export function prepareAnalysisOutput(analysis: RequirementAnalysis): {
+  fullContext: string;
+  metadata: { title: string };
+} {
+  return {
+    fullContext: renderRequirementAnalysis(analysis),
+    metadata: { title: analysis.title },
+  };
+}
 
 export async function processIssue(projectId: string | number, issueIid: string | number, extraText?: string) {
   const log = logger.withContext({ projectId, issueIid, phase: 'process' });
@@ -40,7 +50,7 @@ export async function processIssue(projectId: string | number, issueIid: string 
   };
 
   log.info('Starting AI analysis — this step can take 30-120+ seconds (opencode + model call). Set LOG_LEVEL=debug for more detail.');
-  let analysis: any;
+  let analysis: RequirementAnalysis;
   try {
     analysis = await ai.analyzeTicket(ctx);
   } catch (aiErr: any) {
@@ -52,15 +62,15 @@ export async function processIssue(projectId: string | number, issueIid: string 
     }
     throw aiErr;
   }
-  log.info('AI analysis complete', { summaryLen: analysis.summary?.length || 0 });
+  log.info('AI analysis complete', { descriptionItems: analysis.description.length });
+
+  const { fullContext, metadata } = prepareAnalysisOutput(analysis);
 
   // Decide response style based on how many concrete open questions remain.
   // The AI is now instructed (in its prompt) to produce a proposal as soon as the core goal + requirements are clear,
   // and to put remaining details into openQuestions instead of asking for exhaustive current implementation details.
   const openQs = (analysis.openQuestions || []).filter((q: string) => q && q.trim().length > 5);
   const needsClarification = openQs.length >= 2;   // heuristic: several real questions left
-
-  const fullContext = renderRequirementAnalysis(analysis, { project: ctx.project, issue: ctx.issue });
 
   let commentToPost: string;
   if (needsClarification) {
@@ -96,9 +106,7 @@ export async function processIssue(projectId: string | number, issueIid: string 
   }
 
   // Write the bridge file
-  const filePath = await writeContextFile(projectId, issueIid, fullContext, {
-    title: analysis.implementationTicket?.title,
-  });
+  const filePath = await writeContextFile(projectId, issueIid, fullContext, metadata);
 
   log.info('Process finished (AI response posted; post may have failed if glab has no write access)');
   return { analysis, contextFile: filePath, postedNoteId };

@@ -1,9 +1,32 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { buildUserPrompt, createAiService } from '../src/services/ai/service';
 import { removeAnsweredOpenQuestions } from '../src/services/ai/clarifications';
+import { renderRequirementAnalysis } from '../src/services/ai/formatter';
+import type { RequirementAnalysis } from '../src/services/ai/schema';
 
 describe('AI prompt construction', () => {
+  it('instructs the analyzer to emit only the compact ticket contract', () => {
+    const prompt = buildUserPrompt({
+      issue: { title: 'Compact ticket', description: 'Create the compact format.' },
+    });
+
+    assert.match(prompt, /"title":/);
+    assert.match(prompt, /"description": \[/);
+    assert.match(prompt, /"technicalContext": \[/);
+    assert.match(prompt, /"proposedSolution": \[/);
+    assert.match(prompt, /Items in proposedSolution must not contain numeric prefixes/);
+    assert.doesNotMatch(prompt, /"implementationTicket"|"sourceBasis"|"technicalNotes"/);
+  });
+
+  it('keeps the static OpenCode prompt aligned with the compact terminology', () => {
+    const staticPrompt = fs.readFileSync('.opencode/prompts/requirement-analysis.md', 'utf8');
+    assert.match(staticPrompt, /four-section ticket/);
+    assert.match(staticPrompt, /technical context and proposed solution/);
+    assert.doesNotMatch(staticPrompt, /technical notes and implementation tasks/);
+  });
+
   it('includes repository summary when available', () => {
     const prompt = buildUserPrompt({
       issue: {
@@ -94,28 +117,46 @@ describe('AI prompt construction', () => {
     }
   });
 
+  it('keeps mock analysis grounded and stores its distinctive title outside rendered Markdown', async () => {
+    const originalProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = 'mock';
+    const distinctiveTitle = 'QUASAR-731: Synchronize moon-phase reminders';
+
+    try {
+      const analysis = await createAiService().analyzeTicket({
+        issue: {
+          title: distinctiveTitle,
+          description: '@dev-assist Add the requested reminder behavior.',
+        },
+      });
+      const rendered = renderRequirementAnalysis(analysis);
+
+      assert.equal(analysis.title, distinctiveTitle);
+      assert.doesNotMatch(rendered, new RegExp(distinctiveTitle));
+      assert.deepEqual(analysis.technicalContext, []);
+      assert.doesNotMatch(
+        analysis.proposedSolution.join('\n'),
+        /handler|service|error mapping|automated tests?/i,
+      );
+    } finally {
+      if (originalProvider === undefined) {
+        delete process.env.AI_PROVIDER;
+      } else {
+        process.env.AI_PROVIDER = originalProvider;
+      }
+    }
+  });
+
   it('removes rephrased open questions when the original clarification was answered', () => {
-    const analysis = {
-      summary: 'Theme toggle',
-      sourceBasis: 'ticket_text' as const,
-      implementationTicket: {
-        title: 'Add theme toggle',
-        goal: 'Add theme switching.',
-        scope: [],
-        outOfScope: [],
-        userStories: [],
-        functionalRequirements: [],
-        technicalApproach: [],
-        implementationTasks: [],
-        definitionOfDone: [],
-      },
+    const analysis: RequirementAnalysis = {
+      title: 'Add theme toggle',
+      description: ['Add theme switching.'],
       acceptanceCriteria: [],
-      technicalNotes: [],
+      technicalContext: [],
+      proposedSolution: [],
       openQuestions: [
         'If the user has not explicitly selected a theme, should the application continue reacting to system color-scheme changes after initial load, or is first-load detection sufficient?',
       ],
-      risks: [],
-      validationSteps: [],
     };
 
     const filtered = removeAnsweredOpenQuestions(analysis, [
