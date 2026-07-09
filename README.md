@@ -91,14 +91,16 @@ Expose the service (for GitLab to reach it):
 
 The current real-AI path is `AI_PROVIDER=opencode`.
 
-1. Install and configure the `opencode` CLI for the provider/model you want to use.
-2. Set the provider in `.env`:
-   ```
+1. Install and configure the `opencode` CLI with access to the OpenAI provider.
+2. Set the provider, model, and reasoning variant in `.env`:
+   ```dotenv
    AI_PROVIDER=opencode
-   AI_MODEL=xai/grok-3-latest
+   AI_MODEL=openai/gpt-5.6-luna
+   AI_REASONING_EFFORT=high
    AI_TIMEOUT_MS=120000
    ```
-3. Keep `AI_PROVIDER=mock` for local tests without external keys or model calls.
+3. OpenCode receives these values as `--model openai/gpt-5.6-luna` and `--variant high` for both issue analysis and repository summaries.
+4. Keep `AI_PROVIDER=mock` for local tests without external keys or model calls.
 
 ## opencode CLI + Agent
 
