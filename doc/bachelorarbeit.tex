@@ -772,6 +772,14 @@ Prägend ist die Begrenzung der KI-Komponente. Der Agent erhält vorbereiteten K
 
 Gleichzeitig bleiben Grenzen sichtbar. Die Mention-Erkennung ist toleranter als die strengere Zielregel aus der Anforderungsanalyse. Die JSON-Validierung prüft Pflichtfelder, aber nicht jedes Detail des Schemas. Bild- und Screenshot-Kontext ist noch keine eigene Implementierung, sondern eine Erweiterungsstelle. Kapitel 6 kann daran anschließen, indem es Tests, verbleibende Risiken und die Aussagekraft der Evaluation systematisch bewertet.
 
+\input{kapitel_6_qualitaetssicherung}
+
+\input{kapitel_7_ergebnisse}
+
+\input{kapitel_8_diskussion}
+
+\input{kapitel_9_fazit_ausblick}
+
 \chapter*{Quellen}
 \addcontentsline{toc}{chapter}{Quellen}
 
@@ -843,14 +851,19 @@ Bass, Len; Clements, Paul; Kazman, Rick 2021. \emph{Software Architecture in Pra
 
 Hohpe, Gregor; Woolf, Bobby 2003. \emph{Enterprise Integration Patterns}. Addison-Wesley. \url{https://www.enterpriseintegrationpatterns.com/}.
 
+Easterbrook, Steve; Singer, Janice; Storey, Margaret-Anne; Damian, Daniela 2008. „Selecting Empirical Methods for Software Engineering Research“, in Shull, Forrest; Singer, Janice; Sjøberg, Dag I. K. (Hrsg.): \emph{Guide to Advanced Empirical Software Engineering}, S. 285-311. London: Springer. \url{https://doi.org/10.1007/978-1-84800-044-5_11}.
+
+Wohlin, Claes; Runeson, Per; Höst, Martin; Ohlsson, Magnus C.; Regnell, Björn; Wesslén, Anders 2012. \emph{Experimentation in Software Engineering}. Berlin, Heidelberg: Springer. \url{https://doi.org/10.1007/978-3-642-29044-2}.
+
 Express Docs o. J.a. Basic routing. \url{https://expressjs.com/en/starter/basic-routing/} (Zugriff vom 08.07.2026).
 
 Express Docs o. J.b. Writing middleware for use in Express apps. \url{https://expressjs.com/en/guide/writing-middleware/} (Zugriff vom 08.07.2026).
 
 GitLab Docs o. J.f. GitLab CLI (glab). \url{https://docs.gitlab.com/cli/} (Zugriff vom 08.07.2026).
 
-OpenCode Docs o. J.d. CLI. \url{https://opencode.ai/docs/cli/} (Zugriff vom 08.07.2026).
+OpenCode Docs o. J.d. CLI.\\
+\url{https://opencode.ai/docs/cli/} (Zugriff vom 08.07.2026).
 
-Projektinterne Arbeitsgrundlagen: \path{README.md}, \path{descriptions/project_description.txt}, \path{AGENTS.md}, \path{package.json}, \path{tsconfig.json}, \path{opencode.json}, \path{src/server.ts}, \path{src/app.ts}, \path{src/config.ts}, \path{src/routes/gitlabWebhooks.ts}, \path{src/routes/issues.ts}, \path{src/routes/health.ts}, \path{src/services/gitlab/parser.ts}, \path{src/services/gitlab/mention.ts}, \path{src/services/gitlab/commands.ts}, \path{src/services/gitlab/auth.ts}, \path{src/services/gitlab/client.ts}, \path{src/services/gitlab/cleanup.ts}, \path{src/services/processing/processor.ts}, \path{src/services/processing/publisher.ts}, \path{src/services/ai/service.ts}, \path{src/services/ai/instructions.ts}, \path{src/services/ai/schema.ts}, \path{src/services/ai/formatter.ts}, \path{src/services/ai/clarifications.ts}, \path{src/services/context/writer.ts}, \path{src/services/context/reader.ts}, \path{src/services/repositorySummary.ts}, \path{src/services/tunnel.ts}, \path{src/utils/logger.ts}, \path{src/cli/publish-issue.ts}, \path{tests/gitlab.test.ts}, \path{tests/auth.test.ts}, \path{tests/cleanup.test.ts}, \path{tests/formatter.test.ts}, \path{tests/aiPrompt.test.ts}, \path{tests/aiOpencode.test.ts}, \path{tests/repositorySummary.test.ts}, \path{tests/config.test.ts} und \path{tests/tunnel.test.ts}.
+Projektinterne Arbeitsgrundlagen: \path{README.md}, \path{descriptions/project_description.txt}, \path{AGENTS.md}, \path{package.json}, \path{tsconfig.json}, \path{opencode.json}, \path{src/server.ts}, \path{src/app.ts}, \path{src/config.ts}, \path{src/routes/gitlabWebhooks.ts}, \path{src/routes/issues.ts}, \path{src/routes/health.ts}, \path{src/services/gitlab/parser.ts}, \path{src/services/gitlab/mention.ts}, \path{src/services/gitlab/commands.ts}, \path{src/services/gitlab/auth.ts}, \path{src/services/gitlab/client.ts}, \path{src/services/gitlab/cleanup.ts}, \path{src/services/gitlab/glab.ts}, \path{src/services/processing/processor.ts}, \path{src/services/processing/publisher.ts}, \path{src/services/ai/service.ts}, \path{src/services/ai/instructions.ts}, \path{src/services/ai/schema.ts}, \path{src/services/ai/formatter.ts}, \path{src/services/ai/clarifications.ts}, \path{src/services/ai/opencodeRuntime.ts}, \path{src/services/context/writer.ts}, \path{src/services/context/reader.ts}, \path{src/services/repositorySummary.ts}, \path{src/services/tunnel.ts}, \path{src/utils/logger.ts}, \path{src/cli/publish-issue.ts}, \path{tests/aiOpencode.test.ts}, \path{tests/aiPrompt.test.ts}, \path{tests/auth.test.ts}, \path{tests/cleanup.test.ts}, \path{tests/config.test.ts}, \path{tests/formatter.test.ts}, \path{tests/gitlab.test.ts}, \path{tests/glab.test.ts}, \path{tests/opencodeRuntime.test.ts}, \path{tests/processor.test.ts}, \path{tests/publisher.test.ts}, \path{tests/repositorySummary.test.ts}, \path{tests/schema.test.ts}, \path{tests/tunnel.test.ts} und \path{tests/webhookRoute.test.ts}.
 
 \end{document}
