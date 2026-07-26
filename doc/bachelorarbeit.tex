@@ -1,8 +1,8 @@
-\documentclass[12pt,a4paper,oneside]{scrreprt}
+\documentclass[11pt,a4paper,oneside]{scrreprt}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage[ngerman]{babel}
+\usepackage[provide=*,ngerman]{babel}
 \usepackage[protrusion=true,expansion=false]{microtype}
 \usepackage{geometry}
 \usepackage{array}
@@ -16,16 +16,72 @@
 \setlist{itemsep=0.2em,topsep=0.4em}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.7em}
-\AtBeginDocument{\shorthandoff{"}}
+\setlength{\emergencystretch}{3em}
 
-\title{Konzeption und Implementierung eines KI-gestützten GitLab-Assistenten zur Verbesserung der Qualität von Software-Tickets}
-\author{}
-\date{\today}
+\newcommand{\arbeitstitel}{Konzeption und Implementierung eines KI-gestützten GitLab-Assistenten zur Verbesserung der Qualität von Software-Tickets}
+\newcommand{\studentname}{[VOR- UND NACHNAME ERGÄNZEN]}
+\newcommand{\matrikelnummer}{[MATRIKELNUMMER ERGÄNZEN]}
+\newcommand{\studiengang}{[STUDIENGANG UND KURS ERGÄNZEN]}
+\newcommand{\dualpartner}{[DUALEN PARTNER ERGÄNZEN]}
+\newcommand{\betrieblicherbetreuer}{[BETRIEBLICHE BETREUUNG ERGÄNZEN]}
+\newcommand{\wissenschaftlicherbetreuer}{[WISSENSCHAFTLICHE BETREUUNG ERGÄNZEN]}
+\newcommand{\abgabedatum}{[ABGABEDATUM ERGÄNZEN]}
+
+\hypersetup{
+  pdftitle={\arbeitstitel},
+  pdfauthor={\studentname},
+  pdfsubject={Bachelorarbeit, KI-gestützte Anforderungsaufbereitung in GitLab},
+  pdfkeywords={GitLab, Requirements Engineering, generative KI, Large Language Models, Software-Tickets},
+  pdflang={de-DE}
+}
 
 \begin{document}
 
-\maketitle
+\hypersetup{pageanchor=false}
+\pagenumbering{gobble}
+\begin{titlepage}
+\centering
+{\Large Duale Hochschule Baden-Württemberg\par}
+\vspace{1.5cm}
+{\LARGE\bfseries \arbeitstitel\par}
+\vspace{1.2cm}
+{\large Bachelorarbeit\par}
+\vspace{0.4cm}
+{im Studiengang \studiengang\par}
+\vfill
+\begin{tabular}{@{}p{0.34\textwidth}p{0.58\textwidth}@{}}
+Verfasserin/Verfasser: & \studentname \\
+Matrikelnummer: & \matrikelnummer \\
+Dualer Partner: & \dualpartner \\
+Betriebliche Betreuung: & \betrieblicherbetreuer \\
+Wissenschaftliche Betreuung: & \wissenschaftlicherbetreuer \\
+Abgabedatum: & \abgabedatum \\
+\end{tabular}
+\vfill
+\end{titlepage}
+
+\hypersetup{pageanchor=true}
+\pagenumbering{Roman}
+
+\chapter*{Kurzfassung}
+\addcontentsline{toc}{chapter}{Kurzfassung}
+Software-Tickets bilden in vielen Entwicklungsteams die zentrale Schnittstelle zwischen fachlichem Bedarf, technischer Umsetzung und Qualitätssicherung. In der Praxis sind relevante Informationen jedoch häufig unvollständig, unstrukturiert oder über Beschreibung und Kommentare verteilt. Diese Arbeit untersucht deshalb, welche Angaben ein GitLab-Ticket für eine nachvollziehbare Umsetzung und Prüfung benötigt und wie ein KI-gestützter Assistent kontrolliert in einen GitLab-Workflow integriert werden kann.
+
+Hierzu wird Dev-Assist als Proof of Concept konzipiert und in TypeScript mit Express umgesetzt. GitLab-Webhooks aktivieren die Verarbeitung; der Dienst sammelt Issue-, Kommentar- und optionalen Repository-Kontext, übergibt ihn an einen über OpenCode eingebundenen Analyseagenten und validiert die Rückgabe gegen einen festen Datenvertrag. Abhängig von der Informationslage stellt das System Rückfragen oder erzeugt einen strukturierten Vorschlag. Eine produktive Änderung des Issues erfolgt erst nach einem separaten Publish-Kommando. Signaturprüfung, Replay-Schutz, Deduplizierung, Bot-Schleifenschutz, lokale Kontextpersistenz und eine explizite Freigabe begrenzen dabei die Autonomie des Modells.
+
+Die technische Evaluation umfasst den TypeScript-Build, 71 automatisierte Tests in 17 Suiten und eine Coverage-Erhebung. Sämtliche Tests bestehen; für die geladenen Quelldateien werden 84,10\,\% Zeilenabdeckung erreicht. Nachgewiesen sind damit vor allem deterministische Systemeigenschaften wie Parsing, Schema-Validierung, Formatierung und Sicherheitsgrenzen. Nicht nachgewiesen ist die fachliche Qualität realer Modellantworten im produktiven Einsatz. Die Arbeit kommt zu dem Ergebnis, dass generative KI die Anforderungsaufbereitung unterstützen kann, wenn ein deterministischer Anwendungskern, minimale Berechtigungen und menschliche Freigabe die Modellgenerierung begrenzen. Für eine belastbare Wirkungsaussage sind reale Ende-zu-Ende-Tests und eine empirische Bewertung mit einem kuratierten Ticketkorpus erforderlich.
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+Software tickets are a central interface between business needs, technical implementation, and quality assurance in many development teams. In practice, relevant information is often incomplete, unstructured, or distributed across an issue description and subsequent comments. This thesis therefore investigates which information a GitLab ticket needs to support comprehensible implementation and verification, and how an AI-assisted service can be integrated into a GitLab workflow under explicit technical control.
+
+To address these questions, Dev-Assist is designed and implemented as a TypeScript and Express proof of concept. GitLab webhooks activate the workflow; the service collects issue and comment data as well as optional repository context, submits the prepared input to an analysis agent through OpenCode, and validates the response against a fixed data contract. Depending on the available information, the service either asks focused clarification questions or produces a structured ticket proposal. The GitLab issue is modified only after a separate publish command. Signature verification, replay protection, deduplication, bot-loop prevention, local context persistence, and explicit approval limit the model's autonomy.
+
+The technical evaluation comprises a successful TypeScript build, 71 automated tests in 17 suites, and a coverage run. All tests pass, and the loaded source files reach 84.10\,\% line coverage. This evidence primarily supports deterministic properties such as parsing, schema validation, formatting, and security boundaries. It does not demonstrate the semantic quality of real model responses in production. The thesis concludes that generative AI can support requirements refinement when model generation is enclosed by deterministic application logic, minimal privileges, and human approval. Reliable claims about practical effectiveness require real end-to-end GitLab tests and an empirical evaluation based on a curated ticket corpus and expert assessments.
+
 \tableofcontents
+\clearpage
+\pagenumbering{arabic}
 
 \chapter{Einleitung}
 
@@ -312,11 +368,11 @@ Das Analyseergebnis muss in GitLab sichtbar werden. Bei fehlendem Kontext postet
 
 \textbf{FA-10: Persistenz des strukturierten Kontexts.}
 
-Nach der Analyse muss Dev-Assist den strukturierten Kontext lokal in einem reproduzierbaren Pfad ablegen, etwa unter \texttt{.dev-assist/issues/\textless{}projectId\textgreater{}/\textless{}issueIid\textgreater{}/context.md}. Verfügbare Titel oder Metadaten sollen zusätzlich maschinenlesbar gespeichert werden. Diese Kontextdateien bilden die Grundlage für den Publish-Schritt und mögliche spätere Entwicklungsprozesse.
+Nach der Analyse muss Dev-Assist den strukturierten Kontext lokal in einem reproduzierbaren Pfad ablegen, etwa unter \path{.dev-assist/issues/<projectId>/<issueIid>/context.md}. Verfügbare Titel oder Metadaten sollen zusätzlich maschinenlesbar gespeichert werden. Diese Kontextdateien bilden die Grundlage für den Publish-Schritt und mögliche spätere Entwicklungsprozesse.
 
 \textbf{FA-11: Kontrollierte Übernahme durch Publish.}
 
-Das Publish-Kommando muss den zuvor erzeugten Kontext lesen, Dev-Assist-bezogene Kommentare identifizieren, diese bereinigen und anschließend Titel sowie Beschreibung des GitLab-Issues aktualisieren. Publish darf nur nach erfolgreicher Analyse erfolgen. Die Anforderung begrenzt die Systemautonomie und passt zu OWASPs Risiko "Excessive Agency", bei dem LLM-basierte Systeme zu weitreichende Berechtigungen oder Handlungsspielräume erhalten (vgl. OWASP, 2025b, Abschnitt "LLM06:2025 Excessive Agency").
+Das Publish-Kommando muss den zuvor erzeugten Kontext lesen, Dev-Assist-bezogene Kommentare identifizieren und zunächst Titel sowie Beschreibung des GitLab-Issues erfolgreich aktualisieren. Erst danach dürfen die identifizierten Kommentare bereinigt werden, damit ein fehlgeschlagener Publish keinen Diskussionskontext vernichtet. Publish darf nur nach erfolgreicher Analyse erfolgen. Die Anforderung begrenzt die Systemautonomie und passt zu OWASPs Risiko "Excessive Agency", bei dem LLM-basierte Systeme zu weitreichende Berechtigungen oder Handlungsspielräume erhalten (vgl. OWASP, 2025b, Abschnitt "LLM06:2025 Excessive Agency").
 
 \section{Nicht-funktionale Anforderungen}
 
@@ -434,12 +490,12 @@ Die Gesamtarchitektur lässt sich in sechs Schichten gliedern:
 \textbf{Schicht} & \textbf{Hauptaufgabe} & \textbf{Zentrale Projektmodule} \\
 \midrule
 \endhead
-HTTP- und Routing-Schicht & Requests, JSON-Parsing, Rohkörper-Erfassung, Logging, Antwort an GitLab & \texttt{src/app.ts}, \texttt{src/server.ts}, \texttt{src/routes/gitlabWebhooks.ts}, \texttt{src/routes/issues.ts}, \texttt{src/routes/health.ts} \\
-Webhook-Prüfung & Signatur-/Tokenprüfung, Payload-Parsing, Mention- und Kommandoerkennung, Deduplication & \texttt{src/services/gitlab/auth.ts}, \texttt{src/services/gitlab/parser.ts}, \texttt{src/services/gitlab/mention.ts}, \texttt{src/services/gitlab/commands.ts} \\
-GitLab-Anbindung & Lesen von Issues und Kommentaren, Schreiben und Löschen von Notizen, Aktualisieren von Issues & \texttt{src/services/gitlab/client.ts}, \texttt{src/services/gitlab/cleanup.ts} \\
-Analyse- und Agentenschicht & Prompt-Aufbau, Opencode- oder Mock-Analyse, JSON-Parsing, Schema-Prüfung, Rückfragen & \texttt{src/services/ai/service.ts}, \texttt{src/services/ai/instructions.ts}, \texttt{src/services/ai/schema.ts}, \texttt{src/services/ai/clarifications.ts}, \texttt{opencode.json} \\
-Ausgabe- und Persistenzschicht & GitLab-Markdown, Kontextdateien & \texttt{src/services/ai/formatter.ts}, \texttt{src/services/context/writer.ts}, \texttt{src/services/context/reader.ts} \\
-Prozesssteuerung & Orchestrierung von Analyse und Publish & \texttt{src/services/processing/processor.ts}, \texttt{src/services/processing/publisher.ts} \\
+HTTP- und Routing-Schicht & Requests, JSON-Parsing, Rohkörper-Erfassung, Logging, Antwort an GitLab & \path{src/app.ts}, \path{src/server.ts}, \path{src/routes/gitlabWebhooks.ts}, \path{src/routes/issues.ts}, \path{src/routes/health.ts} \\
+Webhook-Prüfung & Signatur-/Tokenprüfung, Payload-Parsing, Mention- und Kommandoerkennung, Deduplication & \path{src/services/gitlab/auth.ts}, \path{src/services/gitlab/parser.ts}, \path{src/services/gitlab/mention.ts}, \path{src/services/gitlab/commands.ts} \\
+GitLab-Anbindung & Lesen von Issues und Kommentaren, Schreiben und Löschen von Notizen, Aktualisieren von Issues & \path{src/services/gitlab/client.ts}, \path{src/services/gitlab/cleanup.ts} \\
+Analyse- und Agentenschicht & Prompt-Aufbau, Opencode- oder Mock-Analyse, JSON-Parsing, Schema-Prüfung, Rückfragen & \path{src/services/ai/service.ts}, \path{src/services/ai/instructions.ts}, \path{src/services/ai/schema.ts}, \path{src/services/ai/clarifications.ts}, \path{opencode.json} \\
+Ausgabe- und Persistenzschicht & GitLab-Markdown, Kontextdateien & \path{src/services/ai/formatter.ts}, \path{src/services/context/writer.ts}, \path{src/services/context/reader.ts} \\
+Prozesssteuerung & Orchestrierung von Analyse und Publish & \path{src/services/processing/processor.ts}, \path{src/services/processing/publisher.ts} \\
 \bottomrule
 \end{longtable}
 
@@ -464,7 +520,7 @@ Ein Analyseereignis durchläuft folgende Schritte:
 \item Die Route gibt unmittelbar einen erfolgreichen 2xx-Status zurück; im Prototyp ist dies \texttt{202 Accepted}.
 \end{enumerate}
 
-Damit wird zwischen Transportbestätigung und fachlichem Ergebnis unterschieden. Die 2xx-Antwort bedeutet nur, dass Dev-Assist das Ereignis angenommen hat. Ob Analyse, Kommentar oder GitLab-Zugriff erfolgreich waren, wird anschließend über Logging und GitLab-Kommentare sichtbar. Für lokale Tests und manuelle Nachverarbeitung existieren zusätzlich \texttt{/api/issues/:projectId/:issueIid/process} und \texttt{/api/issues/:projectId/:issueIid/publish}; beide nutzen dieselbe Prozess- und Publish-Logik wie der Webhook-Pfad.
+Damit wird zwischen Transportbestätigung und fachlichem Ergebnis unterschieden. Die 2xx-Antwort bedeutet nur, dass Dev-Assist das Ereignis angenommen hat. Ob Analyse, Kommentar oder GitLab-Zugriff erfolgreich waren, wird anschließend über Logging und GitLab-Kommentare sichtbar. Für lokale Tests und manuelle Nachverarbeitung existieren zusätzlich \path{/api/issues/:projectId/:issueIid/process} und \path{/api/issues/:projectId/:issueIid/publish}; beide nutzen dieselbe Prozess- und Publish-Logik wie der Webhook-Pfad.
 
 \section{Zentrale Komponenten und Verantwortlichkeiten}
 
@@ -480,7 +536,7 @@ Der Processor orchestriert den Analysepfad. Er lädt nach Möglichkeit das aktue
 
 Die AI-Service-Komponente erstellt den Prompt und ruft je nach Konfiguration Mock-Modus oder Opencode auf. Opencode wird über den Agenten \texttt{dev-assist-analyzer} eingebunden; die Opencode-Dokumentation beschreibt Agents als spezialisierte KI-Assistenten für Aufgaben und Workflows (vgl. OpenCode Docs, o. J.a, Abschnitt "Agents"). Die detaillierten Regeln, das erwartete JSON-Format und Füllregeln liegen in \texttt{src/services/ai/instructions.ts}, sodass Promptregeln und Laufzeitverarbeitung synchron bleiben.
 
-Die Schema-Komponente definiert die erwartete Antwortstruktur mit Feldern wie \texttt{summary}, \texttt{sourceBasis}, \texttt{implementationTicket}, \texttt{acceptanceCriteria}, \texttt{technicalNotes}, \texttt{openQuestions}, \texttt{risks} und \texttt{validationSteps}. Erst diese maschinenlesbare Struktur ermöglicht deterministische Weiterverarbeitung. Der Formatter rendert gültige Analysen als GitLab-Markdown, entweder als Rückfragekommentar oder als vollständigen strukturierten Vorschlag. Context Writer und Reader speichern den Vorschlag unter \texttt{.dev-assist/issues/\textless{}projectId\textgreater{}/\textless{}issueIid\textgreater{}/context.md} und optionale Metadaten in \texttt{context.json}. Der Publisher liest diese Dateien, bereinigt Dev-Assist-bezogene Kommentare und aktualisiert anschließend Titel und Beschreibung des Issues.
+Die Schema-Komponente definiert den kompakten Antwortvertrag aus \texttt{title}, \texttt{description}, \texttt{acceptanceCriteria}, \texttt{technicalContext}, \texttt{proposedSolution} und \texttt{openQuestions}. Erst diese maschinenlesbare Struktur ermöglicht deterministische Weiterverarbeitung. Der Formatter rendert gültige Analysen als GitLab-Markdown, entweder als Rückfragekommentar oder als vollständigen strukturierten Vorschlag. Context Writer und Reader speichern den Vorschlag unter \path{.dev-assist/issues/<projectId>/<issueIid>/context.md} und optionale Metadaten in \path{context.json}. Der Publisher liest diese Dateien, aktualisiert Titel und Beschreibung des Issues und bereinigt anschließend Dev-Assist-bezogene Kommentare.
 
 \section{Datenfluss vom GitLab-Issue bis zum aktualisierten Ticket}
 
@@ -492,7 +548,7 @@ Nach der Modellantwort folgt die strukturelle Prüfung. Der Opencode-Output wird
 
 Ist die Analyse gültig, entscheidet der Processor anhand offener Fragen, ob ein Rückfragekommentar oder ein vollständiger Vorschlag gepostet wird. In beiden Fällen wird der strukturierte Kontext lokal persistiert, sodass der spätere Publish-Schritt denselben Stand verwendet, der im Kommentar sichtbar war.
 
-Die Publish-Phase beginnt mit einem neuen GitLab-Kommentar oder einem manuellen API-Aufruf. Der Command-Parser erkennt \texttt{publish}, der Publisher liest \texttt{context.md} und \texttt{context.json}, bereitet die finale Issue-Beschreibung auf, extrahiert den vorgeschlagenen Titel und bereinigt Dev-Assist-bezogene Notizen. Anschließend aktualisiert er das Issue über die GitLab Issues API, die Titel, Beschreibung und weitere Felder ändern kann (vgl. GitLab Docs, o. J.c, Abschnitt "Update an issue"). Damit schreibt nicht das Modell produktiv nach GitLab, sondern die Anwendung nach expliziter menschlicher Freigabe.
+Die Publish-Phase beginnt mit einem neuen GitLab-Kommentar oder einem authentifizierten manuellen API-Aufruf. Der Command-Parser erkennt \texttt{publish}, der Publisher liest \texttt{context.md} und \texttt{context.json}, bereitet die finale Issue-Beschreibung auf und extrahiert den vorgeschlagenen Titel. Anschließend aktualisiert er das Issue über die GitLab Issues API, die Titel, Beschreibung und weitere Felder ändern kann (vgl. GitLab Docs, o. J.c, Abschnitt "Update an issue"). Erst nach diesem erfolgreichen Schritt bereinigt er Dev-Assist-bezogene Notizen best effort. Damit schreibt nicht das Modell produktiv nach GitLab, sondern die Anwendung nach expliziter menschlicher Freigabe; ein fehlgeschlagener Issue-Write löscht keine vorherige Diskussion.
 
 \section{Prompt-, Agenten- und Antwortverarbeitung}
 
@@ -510,9 +566,9 @@ Der Mock-Modus ermöglicht lokale Entwicklung und Tests ohne echte Modellaufrufe
 
 Die Kontextpersistenz bildet den Übergabepunkt zwischen Analyse und Publish, erzeugt ein nachvollziehbares Artefakt außerhalb von GitLab und verhindert, dass Publish erneut eine KI-Analyse ausführen muss. Übernommen wird der zuvor erzeugte und gespeicherte Vorschlag.
 
-\texttt{context.md} enthält den strukturierten Vorschlag als Markdown, unter anderem Zusammenfassung, Implementation Ticket, Scope, User Stories, funktionale Anforderungen, technische Hinweise, Definition of Done, Akzeptanzkriterien, offene Fragen, Risiken und Validierungsschritte. \texttt{context.json} enthält optionale Metadaten wie den vorgeschlagenen Titel. Markdown bleibt für Menschen lesbar, JSON für gezielte maschinelle Verarbeitung geeignet.
+\texttt{context.md} enthält den strukturierten Vorschlag als Markdown mit Beschreibung, Akzeptanzkriterien, technischem Kontext und Lösungsvorschlag. \texttt{context.json} enthält optionale Metadaten wie den vorgeschlagenen Titel. Markdown bleibt für Menschen lesbar, JSON für gezielte maschinelle Verarbeitung geeignet. Vor der Pfadbildung werden Projekt-ID und Issue-IID auf positive Ganzzahlen begrenzt, sodass Webhook- oder URL-Daten nicht aus dem konfigurierten Kontextverzeichnis ausbrechen können.
 
-Der Publish-Schritt liest diese Dateien, entfernt Abschnitte, die nicht in die finale Issue-Beschreibung gehören, übernimmt bevorzugt den Titel aus den Metadaten und aktualisiert anschließend das GitLab-Issue. Vorher bereinigt die Cleanup-Komponente Dev-Assist-bezogene Kommentare. Sie löscht keine Systemnotes und keine fachlich unabhängigen Nutzerkommentare. Löschbar sind Dev-Assist-generierte Kommentare sowie Kommentare, die eindeutig Teil der Dev-Assist-Interaktion sind, etwa Assistenzkommandos mit Mention oder Markierungen wie \texttt{\#\# Dev-Assist:} oder \texttt{\# Dev-Assist Context}.
+Der Publish-Schritt liest diese Dateien, entfernt Abschnitte, die nicht in die finale Issue-Beschreibung gehören, übernimmt bevorzugt den Titel aus den Metadaten und aktualisiert zunächst das GitLab-Issue. Danach bereinigt die Cleanup-Komponente Dev-Assist-bezogene Kommentare. Sie löscht keine Systemnotes und keine fachlich unabhängigen Nutzerkommentare. Löschbar sind Dev-Assist-generierte Kommentare sowie Kommentare, die eindeutig Teil der Dev-Assist-Interaktion sind, etwa Assistenzkommandos mit Mention oder Markierungen wie \texttt{\#\# Dev-Assist:} oder \texttt{\# Dev-Assist Context}.
 
 Nach Publish soll die relevante Anforderung nicht mehr über Rückfragen, Vorschläge und Bestätigungskommentare verteilt sein. Stattdessen stehen Titel und Beschreibung strukturiert im Issue; der Kommentarverlauf wird nicht mehr als primäre Anforderungsquelle benötigt.
 
@@ -526,7 +582,7 @@ Bei KI-Fehlern ist die Architektur strenger. Erzeugt der AI-Service keine gülti
 
 GitLab-Schreiboperationen werden teilweise best effort behandelt. Ein fehlgeschlagener Analysekommentar kann neben einer lokal geschriebenen Kontextdatei stehen; beim Publish blockiert das Fehlschlagen einzelner Kommentar-Löschungen nicht zwangsläufig die Aktualisierung der Issue-Beschreibung. Solche Fälle werden geloggt.
 
-Deduplication schützt gegen Mehrfachverarbeitung. Da Webhooks wiederholt eintreffen oder erneut aus der Ereignishistorie gesendet werden können (vgl. GitLab Docs, o. J.a, Abschnitt "Manage webhooks"), speichert Dev-Assist für eine konfigurierbare Zeit Schlüssel aus Projekt, Issue, Ereignistyp und Ereignis-ID. Wiederholte Ereignisse erhalten einen erfolgreichen 2xx-Status, werden aber nicht erneut verarbeitet. Weitere Robustheit entsteht durch Konfiguration über Umgebungsvariablen, etwa für Port, Mention, GitLab-URL, \texttt{glab}, Token, Signaturpflicht, KI-Provider, Timeout, Kontextverzeichnis und Deduplication-TTL.
+Deduplication schützt gegen Mehrfachverarbeitung. Da Webhooks wiederholt eintreffen oder erneut aus der Ereignishistorie gesendet werden können (vgl. GitLab Docs, o. J.a, Abschnitt "Manage webhooks"), speichert Dev-Assist für eine konfigurierbare Zeit Schlüssel aus Projekt, Issue, Ereignistyp und der stabilen Delivery-ID aus \texttt{webhook-id} beziehungsweise kompatiblen Idempotenz-Headern. Fehlt eine solche ID, wird der Rohkörper mit SHA-256 gehasht. Wiederholte Ereignisse erhalten einen erfolgreichen 2xx-Status, werden aber nicht erneut verarbeitet. Weitere Robustheit entsteht durch Konfiguration über Umgebungsvariablen, etwa für Port, Mention, GitLab-URL, \texttt{glab}, Token, Signaturpflicht, KI-Provider, Timeout, Kontextverzeichnis und Deduplication-TTL.
 
 \section{Sicherheitskonzept}
 
@@ -534,7 +590,7 @@ Das Sicherheitskonzept betrifft Webhook-Authentizität, Schutz vor ungewollter V
 
 Webhook-Endpunkte sind öffentliche HTTP-Schnittstellen und müssen vor gefälschten Ereignissen geschützt werden. GitLab empfiehlt für neue Webhooks Signing Tokens. Dabei sendet GitLab die Header \texttt{webhook-id}, \texttt{webhook-timestamp} und, sofern ein Signing Token konfiguriert ist, \texttt{webhook-signature}. Die HMAC-SHA256-Signatur wird über \texttt{\{message\_id\}.\{timestamp\}.\{body\}} berechnet; \texttt{message\_id} und \texttt{timestamp} stammen aus den Headern, \texttt{body} ist der unveränderte JSON-Rohkörper. Der ältere Secret-Token-Mechanismus über \texttt{X-Gitlab-Token} bietet schwächere Garantien und wird für neue Webhooks nicht empfohlen (vgl. GitLab Docs, o. J.a, Abschnitt "Signing tokens"). Dev-Assist erfasst deshalb den Rohkörper, wertet \texttt{webhook-id}, \texttt{webhook-timestamp} und \texttt{webhook-signature} aus, prüft die Signatur vor der Verarbeitung und validiert den Zeitstempel gegen Replay-Angriffe. Die Verifikation ist in einem separaten Auth-Modul gekapselt.
 
-Für lokale Entwicklung unterstützt der Prototyp einen Modus, in dem fehlende Signing Secrets zugelassen und als Warnung geloggt werden. Produktiv lässt sich die Signaturpflicht erzwingen. Zusätzlich verhindert das Mention-Gate, dass Dev-Assist auf beliebige Projektkommentare reagiert; selbst verfasste oder eindeutig generierte Dev-Assist-Kommentare werden ignoriert, um Bot-Schleifen zu vermeiden.
+Die Signaturpflicht ist standardmäßig aktiviert. Für lokale Entwicklung unterstützt der Prototyp einen ausdrücklich zu aktivierenden Modus, in dem fehlende Signing Secrets als Warnung geloggt und toleriert werden. Zusätzlich verhindert das Mention-Gate, dass Dev-Assist auf beliebige Projektkommentare reagiert; selbst verfasste oder eindeutig generierte Dev-Assist-Kommentare werden ignoriert, um Bot-Schleifen zu vermeiden. Die manuellen HTTP-Endpunkte besitzen einen davon getrennten Bearer-Token und bleiben ohne dessen Konfiguration deaktiviert.
 
 Die KI-Autonomie bleibt begrenzt. Das Modell erhält keine direkte GitLab-Schreibberechtigung, sondern liefert nur strukturierte Antworten. Die Anwendung prüft, rendert und entscheidet über weitere Systemhandlungen; produktive Änderungen erfolgen erst nach \texttt{@dev-assist publish}. Damit adressiert die Architektur sowohl Halluzinationsrisiken als auch OWASPs Risiko übermäßiger Handlungsfähigkeit (vgl. National Institute of Standards and Technology, 2024, S. 4 und S. 6; OWASP, 2025b, Abschnitt "LLM06:2025 Excessive Agency"). Secrets wie GitLab-Token, Webhook-Secrets und Modellkonfigurationen liegen nicht im Code, sondern in \texttt{.env}; Logging darf keine Secrets ausgeben.
 
@@ -550,7 +606,7 @@ Der aktuell umgesetzte Kontextausbau liegt bei der Repository-Zusammenfassung. W
 
 Die Architektur wurde so gewählt, dass zentrale Entscheidungen isoliert testbar sind. Da die KI-Komponente selbst nicht vollständig deterministisch ist, konzentrieren sich Tests auf deterministische Systemteile: Parsing, Authentifizierung, Cleanup, Prompt-Aufbau, Rendering, Repository-Summary und Opencode-Ausgabeparsing.
 
-Die GitLab-Payload-Tests prüfen, ob Issue- und Note-Events korrekt erkannt, Publish-Kommandos abgeleitet und selbst erzeugte Dev-Assist-Kommentare ignoriert werden. Authentifizierungstests prüfen Verhalten ohne Secret, bei fehlender Signatur, bei gültiger HMAC-Signatur und bei ungültiger Signatur. Cleanup-Tests stellen sicher, dass Systemnotes und normale Nutzerkommentare erhalten bleiben, während Dev-Assist-bezogene Kommentare gelöscht werden können. Formatter-Tests prüfen Rückfragen, Kontextdokumente und die Darstellung schwacher oder fehlender Abschnitte.
+Die GitLab-Payload-Tests prüfen, ob Issue- und Note-Events korrekt erkannt, Publish-Kommandos abgeleitet und selbst erzeugte Dev-Assist-Kommentare ignoriert werden. Authentifizierungstests prüfen das aktuelle Standard-Webhooks-Format, Zeitstempelfrische, mehrere Signaturen, ungültige Signing Tokens und den Legacy-Pfad. Sicherheitstests decken Kontextpfade, manuelle Bearer-Authentifizierung und Delivery-Deduplizierung ab. Cleanup-Tests stellen sicher, dass Systemnotes und normale Nutzerkommentare erhalten bleiben, während Dev-Assist-bezogene Kommentare gelöscht werden können. Formatter-Tests prüfen Rückfragen, Kontextdokumente und die Darstellung schwacher oder fehlender Abschnitte.
 
 Prompt- und Clarification-Tests sichern, dass Repository-Zusammenfassungen in den Prompt gelangen und beantwortete Dev-Assist-Fragen nicht erneut gestellt werden. Opencode-Tests prüfen die Extraktion von Analyseergebnissen aus JSON-Stream und Export-Fallback. Repository-Summary-Tests sichern die Sammlung von Projektmetadaten, Sprachen, Dateibaum und Schlüsseldateien ab.
 
@@ -572,7 +628,7 @@ Die Implementierung folgt drei Leitgedanken: Transportlogik, GitLab-Zugriffe, KI
 
 \section{Aufbau des TypeScript-Projekts}
 
-Das Projekt ist als Node.js-/TypeScript-Anwendung organisiert. \texttt{package.json} definiert den Dienst als ECMAScript-Modulprojekt und enthält die zentralen Skripte: \texttt{npm run dev} startet den Entwicklungsserver mit \texttt{tsx watch src/server.ts}, \texttt{npm run build} kompiliert nach \texttt{dist/}, \texttt{npm test} führt \texttt{tsx --test tests/**/*.test.ts} aus, und \texttt{npm run publish-issue -- \textless{}projectId\textgreater{}/\textless{}issueIid\textgreater{}} ermöglicht einen manuellen Publish-Schritt. Damit ist der Prototyp lokal im Entwicklungsmodus und als kompiliertes Node.js-Programm betreibbar.
+Das Projekt ist als Node.js-/TypeScript-Anwendung organisiert. \texttt{package.json} definiert den Dienst als ECMAScript-Modulprojekt und enthält die zentralen Skripte: \texttt{npm run dev} startet den Entwicklungsserver mit \texttt{tsx watch src/server.ts}, \texttt{npm run build} kompiliert nach \texttt{dist/}, \texttt{npm test} startet den Node.js-Test-Runner mit dem \texttt{tsx}-Import-Hook, und \texttt{npm run test:coverage} ergänzt eine Coverage-Erhebung. \texttt{npm run publish-issue -- \textless{}projectId\textgreater{}/\textless{}issueIid\textgreater{}} ermöglicht einen manuellen Publish-Schritt. Damit ist der Prototyp lokal im Entwicklungsmodus, in CI und als kompiliertes Node.js-Programm betreibbar.
 
 TypeScript wird eingesetzt, weil Dev-Assist viele strukturierte externe Daten verarbeitet: GitLab-Webhooks, GitLab-API-Antworten, Agentenantworten, Kontextmetadaten und Konfigurationswerte. Das TypeScript-Handbook beschreibt TypeScript als statischen Typechecker für JavaScript, der Fehler vor der Laufzeit auffinden soll (vgl. TypeScript Docs, o. J., o. S.). Für Dev-Assist schließt das Laufzeitfehler nicht aus, hilft aber, interne Datenformen klar zu beschreiben, etwa in \texttt{src/services/gitlab/client.ts} für Issues und Notes oder in \texttt{src/services/ai/schema.ts} für KI-Antworten.
 
@@ -589,23 +645,23 @@ Die Projektstruktur ist klein und modular gehalten:
 \textbf{Bereich} & \textbf{Aufgabe} \\
 \midrule
 \endhead
-\texttt{src/server.ts}, \texttt{src/app.ts} & Serverstart, Middleware, Routen und Shutdown-Verhalten \\
-\texttt{src/config.ts} & Einlesen und Normalisieren von Umgebungsvariablen \\
-\texttt{src/routes/} & Health-Check, GitLab-Webhooks und manuelle Issue-Aktionen \\
-\texttt{src/services/gitlab/} & Webhook-Parsing, Mention-Erkennung, Authentifizierung, GitLab-Client und Kommentarbereinigung \\
-\texttt{src/services/ai/} & Promptaufbau, Mock- und OpenCode-Analyse, Antwortschema, Formatierung und Klärungslogik \\
-\texttt{src/services/context/} & Schreiben und Lesen von \texttt{context.md} und \texttt{context.json} \\
-\texttt{src/services/processing/} & Orchestrierung von Analyse und Publish \\
-\texttt{src/services/repositorySummary.ts} & Sammlung und Zusammenfassung von Repository-Kontext \\
-\texttt{tests/} & Automatisierte Tests für deterministische Systemteile \\
+\path{src/server.ts}, \path{src/app.ts} & Serverstart, Middleware, Routen und Shutdown-Verhalten \\
+\path{src/config.ts} & Einlesen und Normalisieren von Umgebungsvariablen \\
+\path{src/routes/} & Health-Check, GitLab-Webhooks und manuelle Issue-Aktionen \\
+\path{src/services/gitlab/} & Webhook-Parsing, Mention-Erkennung, Authentifizierung, GitLab-Client und Kommentarbereinigung \\
+\path{src/services/ai/} & Promptaufbau, Mock- und OpenCode-Analyse, Antwortschema, Formatierung und Klärungslogik \\
+\path{src/services/context/} & Schreiben und Lesen von \path{context.md} und \path{context.json} \\
+\path{src/services/processing/} & Orchestrierung von Analyse und Publish \\
+\path{src/services/repositorySummary.ts} & Sammlung und Zusammenfassung von Repository-Kontext \\
+\path{tests/} & Automatisierte Tests für deterministische Systemteile \\
 \bottomrule
 \end{longtable}
 
-Die Abhängigkeiten entsprechen dem Prototypumfang. \texttt{express} bildet den HTTP-Server, \texttt{dotenv} lädt die \texttt{.env}, \texttt{typescript}, \texttt{tsx} und Node-Typdefinitionen unterstützen Entwicklung und Tests. Die reale KI-Integration erfolgt derzeit über die OpenCode-CLI, obwohl \texttt{@opencode-ai/sdk} als Abhängigkeit vorhanden ist. Maßgeblich ist damit der CLI-Pfad: Die Anwendung startet \texttt{opencode run}, liest dessen Ausgabe und extrahiert daraus die strukturierte Analyse.
+Die Abhängigkeiten entsprechen dem Prototypumfang. \texttt{express} bildet den HTTP-Server, \texttt{dotenv} lädt die lokal nicht versionierte \texttt{.env}, \texttt{typescript}, \texttt{tsx} und Node-Typdefinitionen unterstützen Entwicklung und Tests. Die reale KI-Integration erfolgt über die separat installierte OpenCode-CLI; ein SDK ist nicht als Projektabhängigkeit eingebunden. Maßgeblich ist damit der CLI-Pfad: Die Anwendung startet \texttt{opencode run}, liest dessen Ausgabe und extrahiert daraus die strukturierte Analyse.
 
 \section{Konfiguration, Startverhalten und Logging}
 
-Die Laufzeitkonfiguration wird zentral in \texttt{src/config.ts} aufgebaut. Das Modul lädt die \texttt{.env} aus dem aktuellen Arbeitsverzeichnis und stellt eine typisierte \texttt{Config}-Struktur bereit. Wichtige Einstellungen sind Port, Log-Level, Mention-String, Bot-Benutzername, GitLab-Basis-URL, GitLab-Authentifizierungsmodus, Webhook-Signing-Secret, KI-Provider, Modell, Timeout, Kontextverzeichnis und Deduplication-Zeitfenster.
+Die Laufzeitkonfiguration wird zentral in \texttt{src/config.ts} aufgebaut. Das Modul lädt die lokal nicht versionierte \texttt{.env} aus dem aktuellen Arbeitsverzeichnis und stellt eine typisierte \texttt{Config}-Struktur bereit. Wichtige Einstellungen sind Port, Log-Level, Mention-String, Bot-Benutzername, GitLab-Basis-URL, GitLab-Authentifizierungsmodus, Webhook-Signing- beziehungsweise Legacy-Secret, zulässige Zeitabweichung, separater Bearer-Token für manuelle HTTP-Aufrufe, KI-Provider, Modell, Timeout, Kontextverzeichnis und Deduplication-Zeitfenster. Die Webhook-Authentifizierung ist standardmäßig verpflichtend; ein unsicherer Entwicklungsbetrieb muss ausdrücklich aktiviert werden.
 
 Für die lokale Entwicklung ist \texttt{AI\_PROVIDER=mock} vorgesehen. Dieser Modus benötigt keine externen Modellzugänge und erzeugt eine deterministische Beispielanalyse. Für reale Analysen unterstützt der Prototyp \texttt{AI\_PROVIDER=opencode}; dann wird ein konfiguriertes Modell über die OpenCode-CLI verwendet. Die GitLab-Anbindung kann über \texttt{glab} oder tokenbasierte REST-Aufrufe erfolgen. Standardmäßig ist \texttt{GITLAB\_USE\_GLAB=true}, weil der Dienst auf einem bereits authentifizierten lokalen GitLab-CLI-Kontext aufbauen soll. GitLab beschreibt \texttt{glab} als offenes CLI-Werkzeug, mit dem GitLab-Funktionen direkt aus dem Terminal genutzt werden können (vgl. GitLab Docs, o. J.f, o. S.).
 
@@ -630,13 +686,13 @@ Die Anwendung registriert drei Routenbereiche:
 \textbf{Route} & \textbf{Zweck} \\
 \midrule
 \endhead
-\texttt{/health} & einfacher Health-Endpunkt mit Status, Servicename und Zeitstempel \\
-\texttt{/webhooks/gitlab/issues} & primärer Webhook-Endpunkt für Issue- und Kommentarereignisse \\
-\texttt{/api/issues/:projectId/:issueIid/process}, \texttt{/api/issues/:projectId/:issueIid/publish} & manuelle Analyse- und Publish-Endpunkte \\
+\path{/health} & einfacher Health-Endpunkt mit Status, Servicename und Zeitstempel \\
+\path{/webhooks/gitlab/issues} & primärer Webhook-Endpunkt für Issue- und Kommentarereignisse \\
+\path{/api/issues/:projectId/:issueIid/process}\newline \path{/api/issues/:projectId/:issueIid/publish} & manuelle Analyse- und Publish-Endpunkte \\
 \bottomrule
 \end{longtable}
 
-Die manuellen Issue-Routen in \texttt{src/routes/issues.ts} verwenden dieselbe Prozess- und Publish-Logik wie der Webhook-Pfad. Ein Process-Aufruf startet \texttt{processIssue}, ein Publish-Aufruf startet \texttt{publishIssue} und kann zusätzliche GitLab-Felder wie \texttt{state\_event} oder Labels aus dem Request-Body übernehmen.
+Die manuellen Issue-Routen in \texttt{src/routes/issues.ts} verwenden dieselbe Prozess- und Publish-Logik wie der Webhook-Pfad. Ein Process-Aufruf startet \texttt{processIssue}, ein Publish-Aufruf startet \texttt{publishIssue} und kann zusätzliche GitLab-Felder wie \texttt{state\_event} oder Labels aus dem Request-Body übernehmen. Beide Routen sind durch einen gesonderten Bearer-Token abgesichert. Fehlt \texttt{DEV\_ASSIST\_API\_TOKEN}, bleiben sie deaktiviert; Projekt-ID und Issue-IID müssen positive Ganzzahlen sein. Dadurch können URL-Parameter nicht als Pfadbestandteile aus dem konfigurierten Kontextverzeichnis ausbrechen.
 
 Der Webhook-Endpunkt akzeptiert Ereignisse möglichst schnell mit \texttt{202 Accepted}, während Analyse oder Veröffentlichung asynchron ausgeführt werden. Diese Trennung ist wichtig, weil eine OpenCode-Analyse länger dauern kann als GitLab auf eine Webhook-Antwort warten sollte. GitLab empfiehlt für Webhook-Receiver schnelle Antworten mit \texttt{200} oder \texttt{201}, keine Verarbeitung im selben Request und Beachtung möglicher Duplikate (vgl. GitLab Docs, o. J.a, Abschnitt "Webhook receiver requirements"). Dev-Assist folgt der Zielrichtung durch schnelle 2xx-Antwort und ausgelagerte Verarbeitung; die Wahl von \texttt{202 Accepted} kennzeichnet die Annahme zur späteren Bearbeitung, weicht aber von den ausdrücklich genannten Beispielstatuscodes ab.
 
@@ -644,13 +700,13 @@ Der Webhook-Endpunkt akzeptiert Ereignisse möglichst schnell mit \texttt{202 Ac
 
 Die Webhook-Verarbeitung liegt in \texttt{src/routes/gitlabWebhooks.ts}. Bei einem POST auf \texttt{/webhooks/gitlab/issues} durchläuft der Request Signaturprüfung, Payload-Parsing, Deduplication, Bot- und Generierungsfilter, Mention- und Kommandoentscheidung sowie den Start von Analyse oder Publish.
 
-Zunächst ruft die Route \texttt{verifyWebhookRequest} aus \texttt{src/services/gitlab/auth.ts} auf. Ist kein Signing Secret konfiguriert, akzeptiert der Prototyp die Anfrage im Entwicklungsmodus und protokolliert eine Warnung. Für produktive GitLab-Webhook-Authentifizierung ist das Signing-Token-Verfahren relevant: GitLab sendet \texttt{webhook-id}, \texttt{webhook-timestamp} und bei konfiguriertem Signing Token \texttt{webhook-signature}; die Signatur wird über \texttt{\{message\_id\}.\{timestamp\}.\{body\}} aus Message-ID, Zeitstempel und rohem JSON-Body berechnet. Der Zeitstempel sollte auf Aktualität geprüft werden, um Replay-Angriffe zu erschweren. Falls \texttt{GITLAB\_REQUIRE\_SIGNATURE=true} gesetzt ist, führt eine fehlgeschlagene Prüfung zu \texttt{401 Unauthorized}; andernfalls wird im Entwicklungsmodus weiterverarbeitet. GitLab empfiehlt Signing Tokens, da sie Authentizität und Integrität per HMAC-SHA256 besser absichern als ein reiner Secret-Token-Header. Für ältere Installationen bleibt \texttt{X-Gitlab-Token} relevant, da GitLab Signing Tokens als in GitLab 19.0 eingeführt und in GitLab 19.1 allgemein verfügbar dokumentiert (vgl. GitLab Docs, o. J.a, Abschnitte "Create a webhook", "Signing tokens" und "Delivery headers").
+Zunächst ruft die Route \texttt{verifyWebhookRequest} aus \texttt{src/services/gitlab/auth.ts} auf. Der Verifier verarbeitet das aktuelle GitLab-Signing-Token-Verfahren: GitLab sendet \texttt{webhook-id}, \texttt{webhook-timestamp} und bei konfiguriertem Signing Token \texttt{webhook-signature}; die Signatur wird über \texttt{\{message\_id\}.\{timestamp\}.\{body\}} aus Message-ID, Zeitstempel und rohem JSON-Body berechnet. Dev-Assist dekodiert den Schlüssel aus dem Format \texttt{whsec\_\textless{}base64\textgreater{}}, bildet den HMAC-SHA256, kodiert ihn als Base64-Wert mit Präfix \texttt{v1,} und vergleicht ihn konstantzeitlich mit allen übermittelten Signaturen. Das standardmäßig fünfminütige Aktualitätsfenster des Zeitstempels erschwert Replay-Angriffe. Der ältere Mechanismus \texttt{X-Gitlab-Token} bleibt über ein getrenntes Secret als Migrationspfad verfügbar. Standardmäßig führt jede fehlende oder ungültige Authentifizierung zu \texttt{401 Unauthorized}; nur die explizite Einstellung \texttt{GITLAB\_REQUIRE\_SIGNATURE=false} erlaubt einen lokalen Entwicklungsfallback (vgl. GitLab Docs, o. J.a, Abschnitte "Create a webhook", "Signing tokens" und "Delivery headers").
 
 Danach überführt \texttt{parseGitLabWebhook} die Payload in ein internes \texttt{ParsedWebhook}-Objekt. Bei Issue-Events liest der Parser Projekt-ID, Issue-IID, Titel, Beschreibung und Aktion aus \texttt{object\_attributes}. Bei Note-Events liest er den Kommentar aus \texttt{object\_attributes.note} und die zugehörigen Issue-Daten aus dem \texttt{issue}-Objekt. GitLab beschreibt Comment Events als Ereignisse für neue oder bearbeitete Kommentare und legt Note-Daten in \texttt{object\_attributes} sowie Zielinformationen unter anderem im \texttt{issue}-Objekt ab (vgl. GitLab Docs, o. J.b, Abschnitt "Comment events").
 
 Die Aktivierung erfolgt über \texttt{src/services/gitlab/mention.ts}. Standardmäßig wird \texttt{@dev-assist} erkannt; \texttt{hasMention} prüft die Mention, \texttt{stripMention} entfernt sie für die Kommandoanalyse. Einfache Markdown- und Formatierungszeichen am Anfang werden toleriert. Die aktuelle Erkennung ist großzügiger als die strengere Zielregel aus Kapitel 3, nach der die Mention auf der ersten Inhaltszeile stehen sollte: Für Issue-Events werden Titel und Beschreibung geprüft, für Note-Events der Kommentartext. Diese Toleranz erhöht die Bedienbarkeit, sollte produktiv aber bewusst gegen die strengere Aktivierungsregel abgewogen werden.
 
-\texttt{src/services/gitlab/commands.ts} bestimmt anschließend das Kommando. Beginnt der Text nach Entfernen der Mention mit \texttt{publish}, wird das Ereignis als Publish-Kommando interpretiert; andernfalls startet eine Analyseanforderung. Zusätzlich verhindert eine im Arbeitsspeicher gehaltene Deduplication Mehrfachverarbeitung. Sie speichert für ein konfigurierbares Zeitfenster einen Schlüssel aus Projekt-ID, Issue-IID, Ereignisart und Ereignis-ID beziehungsweise Objekt-ID. Wiederholte Ereignisse werden mit \texttt{202 Accepted} beantwortet, aber nicht erneut verarbeitet. Für mehrere Instanzen oder Neustarts wäre eine persistente oder verteilte Deduplication erforderlich.
+\texttt{src/services/gitlab/commands.ts} bestimmt anschließend das Kommando. Beginnt die erste inhaltliche Zeile nach Entfernen der Mention mit \texttt{publish}, wird das Ereignis als Publish-Kommando interpretiert; andernfalls startet eine Analyseanforderung. Zusätzlich verhindert eine im Arbeitsspeicher gehaltene Deduplication Mehrfachverarbeitung. Sie bevorzugt die über Wiederholungen stabile Delivery-ID aus \texttt{webhook-id} beziehungsweise kompatiblen Idempotenz-Headern. Fehlt eine solche ID, dient ein SHA-256-Hash des unveränderten Bodys als Fallback. Erst fachlich relevante Ereignisse werden in den Cache aufgenommen, sodass ignorierte Ereignisse keine spätere gültige Verarbeitung blockieren. Wiederholungen erhalten \texttt{202 Accepted}, werden aber nicht erneut verarbeitet. Für mehrere Instanzen oder Neustarts wäre weiterhin eine persistente oder verteilte Deduplication erforderlich.
 
 Schließlich ignoriert der Router selbst erzeugte oder selbst verfasste Kommentare. Dafür vergleicht der Parser den GitLab-Autor mit dem konfigurierten Bot-Benutzernamen und erkennt generierte Kommentare über Marker wie \texttt{\#\# Dev-Assist:}, \texttt{generated by Dev-Assist} oder \texttt{\# Dev-Assist Context}. So interpretiert Dev-Assist eigene Vorschläge oder Rückfragen nicht erneut als Nutzeranweisung.
 
@@ -676,37 +732,37 @@ Der Aufruf \texttt{ai.analyzeTicket(ctx)} bildet die Schnittstelle zur KI-Schich
 
 Nach erfolgreicher Analyse entscheidet der Processor, welcher Kommentar gepostet wird. Bei mindestens zwei substantiellen offenen Fragen wird \texttt{renderClarificationComment} verwendet; andernfalls erzeugt \texttt{renderRequirementAnalysis} einen vollständigen strukturierten Vorschlag. Diese Heuristik verhindert, dass einzelne offene Punkte den gesamten Vorschlag blockieren, während mehrere relevante Fragen als Hinweis auf eine noch instabile Ticketgrundlage behandelt werden.
 
-Unabhängig vom Erfolg des GitLab-Kommentars versucht die Anwendung, den strukturierten Kontext lokal zu persistieren. \texttt{writeContextFile} schreibt \texttt{.dev-assist/issues/\textless{}projectId\textgreater{}/\textless{}issueIid\textgreater{}/context.md} und speichert, sofern vorhanden, den vorgeschlagenen Titel in \texttt{context.json}. \texttt{processFromWebhook} verbindet Parser und Prozesslogik, liest Projekt-ID, Issue-IID und auslösenden Text aus dem \texttt{ParsedWebhook}, prüft die Mention defensiv erneut und ruft \texttt{processIssue} auf.
+Unabhängig vom Erfolg des GitLab-Kommentars versucht die Anwendung, den strukturierten Kontext lokal zu persistieren. \texttt{writeContextFile} schreibt \path{.dev-assist/issues/<projectId>/<issueIid>/context.md} und speichert, sofern vorhanden, den vorgeschlagenen Titel in \path{context.json}. \texttt{processFromWebhook} verbindet Parser und Prozesslogik, liest Projekt-ID, Issue-IID und auslösenden Text aus dem \texttt{ParsedWebhook}, prüft die Mention defensiv erneut und ruft \texttt{processIssue} auf.
 
 \section{OpenCode-Agenten-Integration und Prompt-Design}
 
 Die KI-Schicht liegt in \texttt{src/services/ai/service.ts}. \texttt{createAiService} stellt ein einheitliches Interface bereit. Im Mock-Modus wird eine deterministische Beispielanalyse erzeugt; im OpenCode-Modus wird ein Agentenlauf gestartet. OpenCode beschreibt Agents als spezialisierte KI-Assistenten, die für konkrete Aufgaben und Workflows mit eigenen Prompts, Modellen und Werkzeugzugriffen konfiguriert werden können (vgl. OpenCode Docs, o. J.a, Abschnitt "Agents"). Dev-Assist nutzt dieses Konzept kontrolliert: Der Agent erhält vorbereiteten Kontext und soll ausschließlich ein JSON-Objekt zurückgeben.
 
-Die OpenCode-Konfiguration steht in \texttt{opencode.json}. Dort sind \texttt{dev-assist-analyzer} für die Ticketanalyse und \texttt{repo-summary} für Repository-Zusammenfassungen definiert. Basisprompts liegen in \texttt{.opencode/prompts/requirement-analysis.md} und \texttt{.opencode/prompts/repo-summary.md}; der umfangreiche Analyseprompt wird jedoch zentral in \texttt{src/services/ai/instructions.ts} gepflegt. Dieses Modul enthält Persona, Kernregeln, JSON-Schema-Beispiel, Befüllungsregeln und Klärungshinweise.
+Die OpenCode-Konfiguration steht in \path{opencode.json}. Dort sind \texttt{dev-assist-analyzer} für die Ticketanalyse und \texttt{repo-summary} für Repository-Zusammenfassungen definiert. Basisprompts liegen in \path{.opencode/prompts/requirement-analysis.md} und \path{.opencode/prompts/repo-summary.md}; der umfangreiche Analyseprompt wird jedoch zentral in \path{src/services/ai/instructions.ts} gepflegt. Dieses Modul enthält Persona, Kernregeln, JSON-Schema-Beispiel, Befüllungsregeln und Klärungshinweise.
 
 \texttt{buildUserPrompt} kombiniert die Analyseanweisungen mit GitLab-Issue, optionaler Repository-Zusammenfassung, bereits beantworteten Dev-Assist-Rückfragen und den letzten Kommentaren. Am Ende steht die Aufforderung, ausschließlich ein JSON-Objekt auszugeben. Damit erhält das Modell denselben Regeltext unabhängig vom Ticket, während Ticketkontext und Systemregeln getrennt bleiben und frühere Antworten auf Rückfragen hervorgehoben werden.
 
 Prompt Injection bleibt ein Risiko. OWASP beschreibt Prompt Injection als Schwachstelle, bei der Eingaben das Verhalten eines LLM unbeabsichtigt beeinflussen können (vgl. OWASP, 2025a, Abschnitt "LLM01:2025 Prompt Injection"). Dev-Assist begrenzt dieses Risiko nicht nur durch Prompting, sondern auch technisch: Die Anwendung entscheidet, welche Daten in den Prompt gelangen, ruft nur einen vordefinierten Agenten auf, akzeptiert nur schema-konforme JSON-Antworten und gibt dem Agenten keine direkte GitLab-Schreibberechtigung.
 
-Im OpenCode-Pfad kopiert \texttt{analyzeWithOpencode} erforderliche Dateien nach \texttt{.opencode/runtime}, startet \texttt{opencode run} mit \texttt{--format json}, \texttt{--agent dev-assist-analyzer}, dem konfigurierten Modell und dem vollständigen Prompt, sammelt \texttt{stdout} und \texttt{stderr}, setzt einen Timeout und beendet zu lange laufende Prozesse. Die OpenCode-CLI-Dokumentation beschreibt \texttt{opencode run}, Agent-Auswahl, Formatoptionen und Exportfunktionen als CLI-Funktionen (vgl. OpenCode Docs, o. J.d, o. S.).
+Im OpenCode-Pfad kopiert die Analysefunktion erforderliche Dateien nach \path{.opencode/runtime} und startet \texttt{opencode run}. Übergeben werden das JSON-Ausgabeformat, der Agent \texttt{dev-assist-analyzer}, das konfigurierte Modell und der vollständige Prompt. Die Implementierung sammelt Standardausgabe und Fehlerausgabe, setzt einen Timeout und beendet zu lange laufende Prozesse. Die OpenCode-CLI-Dokumentation beschreibt \texttt{opencode run}, Agent-Auswahl, Formatoptionen und Exportfunktionen als CLI-Funktionen (vgl. OpenCode Docs, o. J.d, o. S.).
 
 Die Ausgabe wird robust verarbeitet. \texttt{parseOpencodeAnalysisOutput} entfernt ANSI-Steuerzeichen, extrahiert JSON-Objekte, berücksichtigt \texttt{\textless{}task\_result\textgreater{}}-Blöcke und durchsucht JSONL-Events. Wenn der JSON-Stream keine finale Textantwort enthält, versucht die Implementierung anhand einer Session-ID einen Export über \texttt{opencode export}. Dieser Export-Fallback ist durch \texttt{tests/aiOpencode.test.ts} abgesichert.
 
 \section{JSON-Antwortverarbeitung und Laufzeitvalidierung}
 
-Die Struktur der KI-Antwort ist in \texttt{src/services/ai/schema.ts} definiert. \texttt{RequirementAnalysis} enthält \texttt{summary}, \texttt{sourceBasis}, \texttt{implementationTicket}, \texttt{acceptanceCriteria}, \texttt{technicalNotes}, \texttt{openQuestions}, \texttt{risks} und \texttt{validationSteps}. Das verschachtelte \texttt{implementationTicket} enthält Titel, Ziel, Scope, Out-of-Scope, User Stories, funktionale Anforderungen, technischen Ansatz, Umsetzungsschritte und Definition of Done.
+Die Struktur der KI-Antwort ist in \path{src/services/ai/schema.ts} definiert. Das dort deklarierte Analyseobjekt enthält exakt die Felder \texttt{title}, \texttt{description}, \texttt{acceptanceCriteria}, \texttt{technicalContext}, \texttt{proposedSolution} und \texttt{openQuestions}. Der kompakte Vertrag trennt damit Titel, Zielbeschreibung, überprüfbare Kriterien, belegten technischen Kontext, Lösungsvorschlag und verbleibende Unsicherheit.
 
-Diese Struktur zwingt den Agenten, zwischen Zusammenfassung, Umsetzungsticket, Akzeptanzkriterien, offenen Fragen und Risiken zu unterscheiden. Dadurch wird die Antwort maschinenlesbar und nachgelagert renderbar. Freier LLM-Fließtext wäre für diesen Workflow ungeeignet, weil die Anwendung dann nicht zuverlässig Titel, Beschreibung, Rückfrage oder Validierungsschritt unterscheiden könnte.
+Diese Struktur zwingt den Agenten, zwischen Ticketbeschreibung, Akzeptanzkriterien, technischem Kontext, Lösungsvorschlag und offenen Fragen zu unterscheiden. Dadurch wird die Antwort maschinenlesbar und nachgelagert renderbar. Freier LLM-Fließtext wäre für diesen Workflow ungeeignet, weil die Anwendung dann nicht zuverlässig Titel, Beschreibung, Rückfrage oder Prüfkriterium unterscheiden könnte.
 
-Die Laufzeitvalidierung erfolgt über \texttt{parseAnalysisJson} und \texttt{validateRequirementAnalysis}. Zunächst werden mögliche Markdown-Codezäune entfernt, dann wird JSON geparst. Anschließend prüft \texttt{validateRequirementAnalysis}, ob alle Pflichtfelder und die Pflichtfelder des verschachtelten \texttt{implementationTicket} vorhanden sind. Diese Validierung ist bewusst einfach und ohne zusätzliche Bibliothek umgesetzt. Sie prüft die Grundstruktur, aber nicht jedes Array-Element und jeden Feldtyp so streng wie eine vollständige JSON-Schema- oder Zod-Validierung.
+Die Laufzeitvalidierung erfolgt über \texttt{parseAnalysisJson} und \texttt{validateRequirementAnalysis}. Zunächst werden mögliche Markdown-Codezäune entfernt, dann wird JSON geparst. Anschließend prüft \texttt{validateRequirementAnalysis}, ob exakt die sechs Pflichtfelder vorhanden sind, ob der Titel ein String ist und ob sämtliche übrigen Felder ausschließlich String-Arrays enthalten. Unbekannte Eigenschaften, falsche Feldtypen und nicht-textuelle Array-Elemente werden abgelehnt. Die Validierung ist ohne zusätzliche Bibliothek umgesetzt, bildet den tatsächlich verwendeten Vertrag jedoch vollständig ab.
 
-Für den Prototyp ist das nachvollziehbar, weil der Schwerpunkt auf der Pipeline aus Prompt, Parsing, Pflichtfeldern, Rendering, Kontextdatei und Publish liegt. Gleichzeitig bleibt es eine Grenze: TypeScript-Typen gelten zur Entwicklungszeit, nicht für externe Laufzeitdaten. Eine produktive Weiterentwicklung sollte daher eine strengere Schema-Validierung ergänzen.
+Die Auswertung von OpenCode-Exporten berücksichtigt zusätzlich, dass ein Export den vollständigen Gesprächsverlauf und damit auch das JSON-Beispiel aus dem Prompt enthalten kann. Kandidaten werden deshalb vom Ende der Ausgabe her geprüft; der bekannte Beispieltitel wird verworfen. Ein automatisierter Test stellt sicher, dass die finale Agentenantwort und nicht das Schema-Beispiel veröffentlicht wird.
 
-Die Formatierung übernimmt \texttt{src/services/ai/formatter.ts}. \texttt{renderClarificationComment} erstellt Rückfragekommentare, wenn wichtige Informationen fehlen. \texttt{renderRequirementAnalysis} erzeugt das vollständige Kontextdokument mit Abschnitten wie Summary, Goal, Scope, User Stories, Functional Requirements, Technical Approach, Acceptance Criteria, Open Questions, Risks and Assumptions und Validation Steps. Schwache Listenwerte wie "not specified", "to be confirmed" oder "unknown" werden durch "Not enough information available yet." ersetzt, damit unsichere Informationen nicht scheinbar konkret erscheinen. Dies passt zum Umgang mit Halluzinationsrisiken: NIST beschreibt Confabulation beziehungsweise Hallucination als überzeugend präsentierte, aber falsche oder irreführende Inhalte (vgl. National Institute of Standards and Technology, 2024, S. 4 und S. 6).
+Die Formatierung übernimmt \path{src/services/ai/formatter.ts}. Eine Funktion erstellt Rückfragekommentare, wenn wichtige Informationen fehlen; eine zweite erzeugt das vollständige Kontextdokument mit den vier sichtbaren Abschnitten Description, Acceptance Criteria, Technical Context \& Logs und Proposed Solution. Der Titel wird getrennt als Metadatum gespeichert. Schwache Listenwerte wie "not specified", "to be confirmed" oder "unknown" werden durch "Not enough information available yet." ersetzt, damit unsichere Informationen nicht scheinbar konkret erscheinen. Dies passt zum Umgang mit Halluzinationsrisiken: NIST beschreibt Confabulation beziehungsweise Hallucination als überzeugend präsentierte, aber falsche oder irreführende Inhalte (vgl. National Institute of Standards and Technology, 2024, S. 4 und S. 6).
 
 \section{Umgang mit Rückfragen und Kommentarverlauf}
 
-Ein wichtiges Implementierungsdetail ist die Behandlung bereits beantworteter Rückfragen. Ohne diese Logik könnte das Modell bei erneuter Analyse dieselben Fragen wiederholen, obwohl sie im Kommentarverlauf bereits beantwortet wurden. \texttt{src/services/ai/clarifications.ts} adressiert dieses Problem.
+Ein wichtiges Implementierungsdetail ist die Behandlung bereits beantworteter Rückfragen. Ohne diese Logik könnte das Modell bei erneuter Analyse dieselben Fragen wiederholen, obwohl sie im Kommentarverlauf bereits beantwortet wurden. Das Modul \path{src/services/ai/clarifications.ts} adressiert dieses Problem.
 
 Das Modul erkennt Dev-Assist-Rückfragekommentare über Marker wie \texttt{Dev-Assist: More information needed} und extrahiert Fragen aus Bullet- oder Nummerierungszeilen. Danach sucht es spätere Nutzerkommentare mit Dev-Assist-Mention. Diese Antworten werden priorisiert in den Prompt aufgenommen. Auch Antworten wie "no info" gelten als Antwort; das Modell soll die Frage dann nicht erneut stellen, sondern fehlende Informationen als "not specified" oder "to be confirmed" weiterführen.
 
@@ -726,13 +782,13 @@ Die Behandlung von Bildern und Screenshots ist dagegen nicht als eigenständige 
 
 Die Trennung zwischen Analyse und Publish begrenzt die Systemautonomie. OWASP beschreibt "Excessive Agency" als Risiko, wenn LLM-basierte Systeme zu weitreichende Berechtigungen oder Handlungsspielräume besitzen (vgl. OWASP, 2025b, Abschnitt "LLM06:2025 Excessive Agency"). Dev-Assist begegnet diesem Risiko, indem die KI-Schicht keinen GitLab-Publish ausführt. Sie erzeugt nur eine strukturierte Analyse, die erst nach einem expliziten Publish-Kommando übernommen wird.
 
-Die Persistenz liegt in \texttt{src/services/context/writer.ts} und \texttt{src/services/context/reader.ts}. \texttt{writeContextFile} erzeugt \texttt{.dev-assist/issues/\textless{}projectId\textgreater{}/\textless{}issueIid\textgreater{}/}, schreibt dort \texttt{context.md} und optional \texttt{context.json}. \texttt{context.md} enthält den gerenderten Vorschlag, \texttt{context.json} derzeit vor allem den vorgeschlagenen Titel. Beim Publish liest \texttt{readContextFile} den Markdown-Inhalt und \texttt{readContextMetadata} die Metadaten. Fehlt die Metadatendatei, wird mit der Beschreibung allein weitergearbeitet.
+Die Persistenz liegt in \path{src/services/context/writer.ts} und \path{src/services/context/reader.ts}. \texttt{writeContextFile} erzeugt \path{.dev-assist/issues/<projectId>/<issueIid>/}, schreibt dort \path{context.md} und optional \path{context.json}. \path{context.md} enthält den gerenderten Vorschlag, \path{context.json} derzeit vor allem den vorgeschlagenen Titel. Projekt-ID und Issue-IID werden vor der Pfadbildung auf positive Ganzzahlen begrenzt; Traversal-Sequenzen werden abgewiesen. Beim Publish liest \texttt{readContextFile} den Markdown-Inhalt und \texttt{readContextMetadata} die Metadaten. Fehlt die Metadatendatei, wird mit der Beschreibung allein weitergearbeitet.
 
 Der Publish-Schritt befindet sich in \texttt{src/services/processing/publisher.ts}. Zunächst wird der gespeicherte Kontext gelesen. Danach entfernt \texttt{renderPublishedDescription} Abschnitte, die nicht in die finale Issue-Beschreibung gehören, etwa den separaten Titelabschnitt. Der Titel wird bevorzugt aus \texttt{context.json} übernommen, andernfalls aus dem Markdown extrahiert. So landet er im GitLab-Issue-Titel und nicht redundant im Beschreibungstext.
 
-Vor der Aktualisierung bereinigt der Publisher den Kommentarverlauf. Er lädt die Notes und ruft \texttt{filterDeletableNotes} aus \texttt{src/services/gitlab/cleanup.ts} auf. Nicht gelöscht werden Systemnotes und normale Nutzerkommentare ohne Dev-Assist-Bezug. Löschbar sind Kommentare mit Mention sowie generierte Dev-Assist-Kommentare mit bekannten Markern. Einzelne Löschfehler blockieren den Publish nicht, sondern werden protokolliert.
+Vor der Mutation lädt der Publisher den Kommentarverlauf und filtert die Dev-Assist-bezogenen Notes. Die eigentliche Reihenfolge schützt vor Datenverlust: Zuerst aktualisiert \texttt{updateIssue} Titel und Beschreibung. Erst nach diesem erfolgreichen, dauerhaften Schritt werden die zuvor identifizierten Kommentare best effort gelöscht. Nicht gelöscht werden Systemnotes und normale Nutzerkommentare ohne Dev-Assist-Bezug. Einzelne Löschfehler blockieren den bereits erfolgreichen Publish nicht, sondern werden protokolliert.
 
-Anschließend aktualisiert \texttt{updateIssue} Titel und Beschreibung des GitLab-Issues. Optional können Zusatzfelder wie Labels oder Statuswechsel übergeben werden. Diese Möglichkeit nutzen der manuelle HTTP-Endpunkt und \texttt{src/cli/publish-issue.ts}. Der CLI-Helfer interpretiert ein Argument wie \texttt{123/42 close,ready} als Projekt-ID, Issue-IID und optionale Zusatzaktionen. Ohne vorherigen Process-Schritt fehlt die Kontextdatei; ohne explizites Publish-Kommando wird kein Vorschlag übernommen. Damit bleibt die endgültige Änderung an eine bewusste Benutzerhandlung gebunden.
+Optional können anschließend Zusatzfelder wie Labels oder Statuswechsel übergeben werden. Diese Möglichkeit nutzen der authentifizierte manuelle HTTP-Endpunkt und \texttt{src/cli/publish-issue.ts}. Der CLI-Helfer interpretiert ein Argument wie \texttt{123/42 close,ready} als Projekt-ID, Issue-IID und optionale Zusatzaktionen. Ohne vorherigen Process-Schritt fehlt die Kontextdatei; ohne explizites Publish-Kommando wird kein Vorschlag übernommen. Damit bleibt die endgültige Änderung an eine bewusste Benutzerhandlung gebunden.
 
 \section{Simulation, lokale Ausführung und Tests}
 
@@ -751,14 +807,15 @@ Die automatisierten Tests konzentrieren sich auf deterministische Systemteile:
 \textbf{Testdatei} & \textbf{Abgesicherter Bereich} \\
 \midrule
 \endhead
-\texttt{tests/gitlab.test.ts} & Parsing von Issue- und Note-Events, Publish-Kommando, eigene und generierte Kommentare \\
-\texttt{tests/auth.test.ts} & Verhalten ohne Secret, fehlende, gültige und ungültige HMAC-Signaturen \\
-\texttt{tests/cleanup.test.ts} & Auswahl löschbarer und nicht löschbarer Kommentare \\
-\texttt{tests/formatter.test.ts} & Rückfragekommentare, Kontextdokumente und Platzhalter für schwache Abschnitte \\
-\texttt{tests/aiPrompt.test.ts} & Repository-Summary, beantwortete Rückfragen und Filterung offener Fragen \\
-\texttt{tests/aiOpencode.test.ts} & Parsing über OpenCode-Export-Fallback \\
-\texttt{tests/repositorySummary.test.ts} & Sammlung, Caching und Extraktion von Repository-Zusammenfassungen \\
-\texttt{tests/config.test.ts}, \texttt{tests/tunnel.test.ts} & Konfigurationsdetails und Cloudflare-Tunnel-Helfer \\
+\path{tests/gitlab.test.ts} & Parsing von Issue- und Note-Events, Publish-Kommando, eigene und generierte Kommentare \\
+\path{tests/auth.test.ts} & Standard-Webhooks-Signaturen, Replay-Schutz, ungültige Schlüssel und Legacy-Token \\
+\path{tests/cleanup.test.ts} & Auswahl löschbarer und nicht löschbarer Kommentare \\
+\path{tests/formatter.test.ts} & Rückfragekommentare, Kontextdokumente und Platzhalter für schwache Abschnitte \\
+\path{tests/aiPrompt.test.ts} & Repository-Summary, beantwortete Rückfragen und Filterung offener Fragen \\
+\path{tests/aiOpencode.test.ts} & Parsing über OpenCode-Export-Fallback \\
+\path{tests/repositorySummary.test.ts} & Sammlung, Caching und Extraktion von Repository-Zusammenfassungen \\
+\path{tests/config.test.ts}, \path{tests/tunnel.test.ts} & Konfigurationsdetails und Cloudflare-Tunnel-Helfer \\
+\path{tests/security.test.ts} & Pfadbegrenzung, manuelle Bearer-Authentifizierung und Delivery-Deduplizierung \\
 \bottomrule
 \end{longtable}
 
@@ -770,7 +827,7 @@ Die Implementierung setzt die Architektur aus Kapitel 4 als modularen TypeScript
 
 Prägend ist die Begrenzung der KI-Komponente. Der Agent erhält vorbereiteten Kontext und feste Analyseanweisungen, muss ein JSON nach definiertem Schema liefern und kann nicht selbst produktive GitLab-Änderungen durchführen. Die Anwendung validiert, rendert, persistiert und veröffentlicht erst nach explizitem Publish-Kommando. Damit zeigt der Prototyp, wie ein KI-gestützter GitLab-Assistent Ticketinformationen strukturieren kann, ohne menschliche Freigabe und technische Nachvollziehbarkeit aus dem Prozess zu entfernen.
 
-Gleichzeitig bleiben Grenzen sichtbar. Die Mention-Erkennung ist toleranter als die strengere Zielregel aus der Anforderungsanalyse. Die JSON-Validierung prüft Pflichtfelder, aber nicht jedes Detail des Schemas. Bild- und Screenshot-Kontext ist noch keine eigene Implementierung, sondern eine Erweiterungsstelle. Kapitel 6 kann daran anschließen, indem es Tests, verbleibende Risiken und die Aussagekraft der Evaluation systematisch bewertet.
+Gleichzeitig bleiben Grenzen sichtbar. Bild- und Screenshot-Kontext ist noch keine eigene Implementierung, sondern eine Erweiterungsstelle. Die Deduplizierung bleibt prozesslokal und übersteht keinen Neustart; auch die fachliche Qualität realer Modellantworten ist nicht durch ein Ticketkorpus belegt. Kapitel 6 kann daran anschließen, indem es Tests, verbleibende Risiken und die Aussagekraft der Evaluation systematisch bewertet.
 
 \input{kapitel_6_qualitaetssicherung}
 
@@ -795,7 +852,7 @@ Chaparro, Oscar; Lu, Jing; Zampetti, Fiorella; Moreno, Laura; Di Penta, Massimil
 
 Express Docs o. J. Express.js. Node.js web application framework. \url{https://expressjs.com/en/} (Zugriff vom 25.06.2026).
 
-GitLab Docs o. J.a. Webhooks. \url{https://docs.gitlab.com/user/project/integrations/webhooks/} (Zugriff vom 25.06.2026).
+GitLab Docs o. J.a. Webhooks. \url{https://docs.gitlab.com/user/project/integrations/webhooks/} (Zugriff vom 21.07.2026).
 
 GitLab Docs o. J.b. Webhook events. \url{https://docs.gitlab.com/user/project/integrations/webhook_events/} (Zugriff vom 25.06.2026).
 
@@ -864,6 +921,6 @@ GitLab Docs o. J.f. GitLab CLI (glab). \url{https://docs.gitlab.com/cli/} (Zugri
 OpenCode Docs o. J.d. CLI.\\
 \url{https://opencode.ai/docs/cli/} (Zugriff vom 08.07.2026).
 
-Projektinterne Arbeitsgrundlagen: \path{README.md}, \path{descriptions/project_description.txt}, \path{AGENTS.md}, \path{package.json}, \path{tsconfig.json}, \path{opencode.json}, \path{src/server.ts}, \path{src/app.ts}, \path{src/config.ts}, \path{src/routes/gitlabWebhooks.ts}, \path{src/routes/issues.ts}, \path{src/routes/health.ts}, \path{src/services/gitlab/parser.ts}, \path{src/services/gitlab/mention.ts}, \path{src/services/gitlab/commands.ts}, \path{src/services/gitlab/auth.ts}, \path{src/services/gitlab/client.ts}, \path{src/services/gitlab/cleanup.ts}, \path{src/services/gitlab/glab.ts}, \path{src/services/processing/processor.ts}, \path{src/services/processing/publisher.ts}, \path{src/services/ai/service.ts}, \path{src/services/ai/instructions.ts}, \path{src/services/ai/schema.ts}, \path{src/services/ai/formatter.ts}, \path{src/services/ai/clarifications.ts}, \path{src/services/ai/opencodeRuntime.ts}, \path{src/services/context/writer.ts}, \path{src/services/context/reader.ts}, \path{src/services/repositorySummary.ts}, \path{src/services/tunnel.ts}, \path{src/utils/logger.ts}, \path{src/cli/publish-issue.ts}, \path{tests/aiOpencode.test.ts}, \path{tests/aiPrompt.test.ts}, \path{tests/auth.test.ts}, \path{tests/cleanup.test.ts}, \path{tests/config.test.ts}, \path{tests/formatter.test.ts}, \path{tests/gitlab.test.ts}, \path{tests/glab.test.ts}, \path{tests/opencodeRuntime.test.ts}, \path{tests/processor.test.ts}, \path{tests/publisher.test.ts}, \path{tests/repositorySummary.test.ts}, \path{tests/schema.test.ts}, \path{tests/tunnel.test.ts} und \path{tests/webhookRoute.test.ts}.
+Projektinterne Arbeitsgrundlagen: \path{README.md}, \path{descriptions/project_description.txt}, \path{AGENTS.md}, \path{package.json}, \path{tsconfig.json}, \path{opencode.json}, \path{.github/workflows/ci.yml}, \path{src/server.ts}, \path{src/app.ts}, \path{src/config.ts}, \path{src/routes/gitlabWebhooks.ts}, \path{src/routes/issues.ts}, \path{src/routes/health.ts}, \path{src/services/gitlab/parser.ts}, \path{src/services/gitlab/mention.ts}, \path{src/services/gitlab/commands.ts}, \path{src/services/gitlab/auth.ts}, \path{src/services/gitlab/client.ts}, \path{src/services/gitlab/cleanup.ts}, \path{src/services/gitlab/glab.ts}, \path{src/services/http/auth.ts}, \path{src/services/processing/processor.ts}, \path{src/services/processing/publisher.ts}, \path{src/services/ai/service.ts}, \path{src/services/ai/instructions.ts}, \path{src/services/ai/schema.ts}, \path{src/services/ai/formatter.ts}, \path{src/services/ai/clarifications.ts}, \path{src/services/ai/opencodeRuntime.ts}, \path{src/services/context/path.ts}, \path{src/services/context/writer.ts}, \path{src/services/context/reader.ts}, \path{src/services/repositorySummary.ts}, \path{src/services/tunnel.ts}, \path{src/utils/logger.ts}, \path{src/cli/publish-issue.ts}, \path{tests/aiOpencode.test.ts}, \path{tests/aiPrompt.test.ts}, \path{tests/auth.test.ts}, \path{tests/cleanup.test.ts}, \path{tests/config.test.ts}, \path{tests/formatter.test.ts}, \path{tests/gitlab.test.ts}, \path{tests/glab.test.ts}, \path{tests/opencodeRuntime.test.ts}, \path{tests/processor.test.ts}, \path{tests/publisher.test.ts}, \path{tests/repositorySummary.test.ts}, \path{tests/schema.test.ts}, \path{tests/security.test.ts}, \path{tests/tunnel.test.ts} und \path{tests/webhookRoute.test.ts}.
 
 \end{document}

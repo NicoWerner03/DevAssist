@@ -1,0 +1,307 @@
+\chapter{Qualitätssicherung und Evaluation}
+
+Dieses Kapitel untersucht, in welchem Umfang der implementierte Dev-Assist-Prototyp die in Kapitel 3 formulierten Anforderungen nachweisbar erfüllt und an welchen Stellen die Aussagekraft der bisherigen Prüfung begrenzt bleibt. Qualitätssicherung besitzt bei Dev-Assist zwei unterschiedliche Ebenen. Einerseits müssen die deterministischen Anwendungsteile zuverlässig funktionieren: Webhook-Payloads sind zu parsen, Signaturen und Antwortformate zu prüfen, Kommentare zu filtern, Kontextdateien zu verarbeiten und Publish-Daten korrekt aufzubereiten. Andererseits ist die inhaltliche Qualität einer generativen KI-Ausgabe zu bewerten. Hier geht es nicht nur um syntaktisch gültiges JSON, sondern darum, ob fehlende Informationen erkannt, präzise Rückfragen gestellt und nutzbare, inhaltlich abgesicherte Ticketvorschläge erzeugt werden.
+
+Die beiden Ebenen dürfen nicht gleichgesetzt werden. Eine vollständig grüne Testsuite belegt, dass die geprüften Programmteile für die verwendeten Eingaben das erwartete Verhalten zeigen. Sie belegt jedoch weder die semantische Qualität beliebiger Modellantworten noch die Funktionsfähigkeit mit jeder GitLab- oder Opencode-Version. Easterbrook et al. betonen, dass die Wahl einer empirischen Methode von Forschungsfrage, verfügbaren Ressourcen, Kontrollmöglichkeiten und Kontext abhängt und jede Methode nur begrenzte, qualifizierte Evidenz liefert (vgl. Easterbrook et al., 2008, S. 285 f.). Die Evaluation wird deshalb als Kombination aus reproduzierbarer automatisierter Prüfung, szenariobasierter Komponentensimulation, Anforderungsabgleich und expliziter Diskussion der nicht geprüften Bereiche aufgebaut.
+
+\section{Zielsetzung und Untersuchungsrahmen}
+
+Ziel der Qualitätssicherung ist nicht der Nachweis einer fehlerfreien oder produktionsreifen Anwendung. Untersucht wird vielmehr, ob der Prototyp seinen Kernworkflow technisch kontrolliert abbildet und welche Aussagen aus den vorhandenen Tests über seine Robustheit und fachliche Eignung abgeleitet werden können. Der Untersuchungsgegenstand ist der Repository-Stand vom 21.07.2026. Als ausführbare Prüfbasis dienen der TypeScript-Build und die unter \path{tests/} vorhandenen automatisierten Tests. Ergänzend werden Implementierung, Tests und Anforderungen statisch miteinander verglichen.
+
+Wohlin et al. beschreiben empirische Untersuchungen in der Softwaretechnik als einen Prozess aus Abgrenzung, Planung, Durchführung, Analyse und Ergebnisdarstellung (vgl. Wohlin et al., 2012, S. 73 ff.). Dieses Kapitel folgt diesem Grundgedanken in einer für den Prototyp angemessenen Form. Zunächst wird festgelegt, welche Qualitätsaussagen mit welcher Evidenz geprüft werden. Danach werden Testumgebung und Testfälle beschrieben, die Ergebnisse zusammengeführt und schließlich ihre Grenzen bewertet. Es handelt sich jedoch nicht um ein kontrolliertes Experiment: Es gibt weder Versuchsgruppen noch eine unabhängige Variable, deren kausale Wirkung gemessen wird. Ebenso liegt keine Feldstudie mit Entwicklungsteams vor. Die Untersuchung ist eine verifikationsorientierte Evaluation eines einzelnen Prototyps.
+
+Die verwendeten Evidenzarten beantworten unterschiedliche Fragen:
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth}>{\raggedright\arraybackslash}p{0.37\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}@{}}
+\toprule
+\textbf{Evidenzart} & \textbf{Untersuchte Frage} & \textbf{Mögliche Aussage} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Evidenzart} & \textbf{Untersuchte Frage} & \textbf{Mögliche Aussage} \\
+\midrule
+\endhead
+TypeScript-Build & Ist der untersuchte Quellstand statisch typisierbar und kompilierbar? & Der Quellstand lässt sich ohne TypeScript-Fehler übersetzen. \\
+Automatisierte Unit-Tests & Verhalten sich isolierte Parser-, Validierungs-, Formatierungs- und Hilfsfunktionen für definierte Eingaben korrekt? & Das erwartete deterministische Verhalten ist für die abgedeckten Fälle reproduzierbar. \\
+Komponenten- und Routentests & Funktionieren mehrere reale Anwendungsteile gemeinsam, wenn externe Systeme ersetzt werden? & Schnittstellen zwischen ausgewählten Komponenten sind für die simulierten Fälle konsistent. \\
+Anforderungs-\newline abgleich & Decken Implementierung und Tests die Anforderungen FA-1 bis FA-11 sowie NFA-1 bis NFA-10 ab? & Erfüllung, Teilabdeckung und Abweichungen werden nachvollziehbar. \\
+Inhaltsbezogenes\newline Bewertungsraster & Nach welchen Kriterien wären reale KI-Ausgaben zu bewerten? & Semantische Qualität wird operationalisiert; ohne Korpus und Bewertungen entsteht aber noch kein empirischer Wirksamkeitsnachweis. \\
+\bottomrule
+\end{longtable}
+
+Diese Trennung verhindert eine Überinterpretation der Testergebnisse. Der Build prüft beispielsweise keine Laufzeitdaten. Ein Schema-Test prüft keine fachliche Wahrheit. Ein simulierter Opencode-Prozess zeigt, dass der Export-Fallback verarbeitet wird, aber nicht, dass ein reales Modell verlässlich gute Tickets erzeugt. Die Evaluation bewertet daher sowohl positive Nachweise als auch Lücken.
+
+\section{Teststrategie}
+
+Die Teststrategie konzentriert sich auf die kontrollierbaren Grenzen um das Sprachmodell. Diese Schwerpunktsetzung folgt aus der Architektur: Das Modell erhält vorbereiteten Kontext und erzeugt eine strukturierte Antwort, während die Anwendung Aktivierung, Datenabruf, Parsing, Formatierung, Persistenz und Publish steuert. Gerade weil Modellantworten nicht vollständig deterministisch sind, müssen die deterministischen Schutzmechanismen zuverlässig geprüft werden.
+
+Die Tests lassen sich in vier Ebenen einordnen:
+
+\begin{enumerate}
+\item \textbf{Unit-Tests für reine oder weitgehend isolierte Funktionen.} Dazu gehören Webhook-Parsing, Kommandoerkennung, Schema-Validierung, Markdown-Formatierung, Kommentarbereinigung, Konfigurationswerte und die Aufbereitung von Publish-Daten. Diese Tests sind schnell, reproduzierbar und benötigen keine Netzwerkverbindung.
+\item \textbf{Komponententests mit simulierten Abhängigkeiten.} Der Repository-Summary-Service erhält einen simulierten GitLab-Client. Die Opencode-Tests legen temporäre ausführbare Dateien in den Suchpfad und prüfen damit den realen Prozessstart sowie die Verarbeitung von Standardausgabe und Export-Fallback, ohne einen Modellaufruf auszuführen.
+\item \textbf{HTTP-Routentests.} \path{tests/webhookRoute.test.ts} startet eine reale Express-Anwendung auf einem zufälligen lokalen Port und sendet HTTP-Anfragen über \texttt{fetch}. Damit werden JSON-Middleware, Router, Parser und HTTP-Antwort gemeinsam geprüft. Die bisher abgedeckten Routentests betreffen allerdings nur ignorierte Webhooks, nicht den erfolgreichen asynchronen Process- oder Publish-Pfad.
+\item \textbf{Szenariobasierte und inhaltliche Bewertung.} Der Mock-Provider und die Prompt-Tests prüfen, ob Tickettext, Repository-Zusammenfassung und beantwortete Rückfragen in die Analyse eingehen. Sie ersetzen jedoch keine Bewertung realer, stochastischer Modellantworten. Für diese Ebene wird deshalb in Abschnitt 6.7 ein Bewertungsraster definiert und der bisherige Nachweisumfang begrenzt ausgewiesen.
+\end{enumerate}
+
+Die Abgrenzung zwischen Unit- und Integrationstest ist in diesem Projekt nicht vollständig trennscharf. Ein Test des Formatters ist ein klassischer Unit-Test. Ein Test, der einen echten Express-Server, Parser und Router kombiniert, ist ein Komponenten- oder Integrationstest. Eine vollständige Ende-zu-Ende-Prüfung würde dagegen ein reales GitLab-Projekt, einen echten Webhook, gültige Authentifizierung, den konfigurierten Opencode-Agenten, einen Modellaufruf, Kommentarerstellung, Kontextpersistenz und anschließenden Publish umfassen. Ein solcher Test ist im Repository nicht vorhanden.
+
+\section{Testumgebung, Durchführung und Gesamtergebnis}
+
+Die automatisierte Prüfung wurde am 21.07.2026 in einer isolierten Linux-Umgebung mit Node.js 24.14.0 und npm 11.9.0 durchgeführt. Das Projekt verwendet den in Node.js enthaltenen Test-Runner, der über \texttt{node --import tsx --test tests/*.test.ts} gestartet wird. Der Build erfolgt mit dem TypeScript-Compiler über \texttt{npm run build}. Eine GitHub-Actions-Konfiguration wiederholt Installation, Build und Tests unter Node.js 20 bei Pushes und Pull Requests.
+
+Die Ausführung ergab folgendes Ergebnis:
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.42\textwidth}>{\raggedright\arraybackslash}p{0.48\textwidth}@{}}
+\toprule
+\textbf{Prüfschritt} & \textbf{Ergebnis} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Prüfschritt} & \textbf{Ergebnis} \\
+\midrule
+\endhead
+\texttt{npm run build} & erfolgreich, keine TypeScript-Fehler \\
+\texttt{npm test} & 71 von 71 Tests bestanden \\
+Testsuiten & 17 bestanden \\
+Fehlgeschlagene, übersprungene oder offene Tests & 0 \\
+Laufzeit des dokumentierten Testlaufs & ca. 0,70 Sekunden \\
+\texttt{npm run test:coverage} & 84,10\,\% Zeilen-, 76,21\,\% Branch- und 76,78\,\% Funktionsabdeckung der geladenen Quelldateien \\
+Reale GitLab- oder Modellaufrufe & keine; externe Abhängigkeiten wurden simuliert oder umgangen \\
+\bottomrule
+\end{longtable}
+
+Die 71 Testfälle verteilen sich wie folgt auf die geprüften Bereiche:
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.49\textwidth}>{\raggedleft\arraybackslash}p{0.10\textwidth}@{}}
+\toprule
+\textbf{Bereich} & \textbf{Testdateien} & \textbf{Anzahl} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Bereich} & \textbf{Testdateien} & \textbf{Anzahl} \\
+\midrule
+\endhead
+GitLab-Parsing, HTTP-Route, Authentifizierung, Cleanup und \texttt{glab}-Hilfen & \path{gitlab.test.ts}, \path{webhookRoute.test.ts}, \path{auth.test.ts}, \path{cleanup.test.ts}, \path{glab.test.ts} & 26 \\
+KI-Prompt, Schema, Formatierung und Opencode-Laufzeit & \path{aiPrompt.test.ts}, \path{schema.test.ts}, \path{formatter.test.ts}, \path{aiOpencode.test.ts}, \path{opencodeRuntime.test.ts} & 23 \\
+Repository-Kontext, Process- und Publish-Aufbereitung & \path{repositorySummary.test.ts}, \path{processor.test.ts}, \path{publisher.test.ts} & 9 \\
+Konfiguration und Tunnel-Helfer & \path{config.test.ts}, \path{tunnel.test.ts} & 7 \\
+Sicherheitsgrenzen & \path{security.test.ts} & 3 \\
+Manuelle HTTP-Routen & \path{manualRoute.test.ts} & 3 \\
+\textbf{Gesamt} & 17 Testdateien & \textbf{71} \\
+\bottomrule
+\end{longtable}
+
+Das Ergebnis belegt einen stabilen, reproduzierbaren Stand der vorhandenen Tests. Die Coverage-Erhebung zeigt zugleich deutliche Unterschiede: Authentifizierung, Kontextpfad und Context Writer erreichen nahezu vollständige Zeilenabdeckung, während GitLab-Client und Processor wesentlich schwächer abgedeckt sind. Auch 84,10\,\% Zeilenabdeckung belegen keine fachliche Korrektheit und beziehen sich nur auf während des Laufs geladene Dateien. Deshalb wird im Folgenden nicht die Testanzahl oder Coverage allein, sondern die konkret abgedeckte Funktionalität bewertet.
+
+\section{Unit- und Komponententests}
+
+\subsection{Webhook-Parsing, Aktivierung und Kommandos}
+
+\path{tests/gitlab.test.ts} prüft Issue- und Note-Payloads. Erfasst werden Projekt-ID, Issue-IID, Titel, Beschreibung oder Kommentar sowie das abgeleitete Kommando. Ein Kommentar mit \texttt{@dev-assist publish} wird als Publish-Kommando erkannt. Selbst verfasste Bot-Kommentare und Kommentare mit bekannten Dev-Assist-Markern werden ignoriert. Diese Tests sind für NFA-7 wichtig, weil sie eine zentrale Ursache für Bot-Endlosschleifen adressieren.
+
+FA-1 fordert, dass der erste inhaltliche Text mit \texttt{@dev-assist} beginnt. Die Implementierung wertet deshalb die erste nichtleere Zeile nach dem Entfernen einfacher Markdown-Präfixe aus. Tests bestätigen sowohl die Aktivierung am Zeilenanfang als auch die Ablehnung einer Mention, die nur im Titel oder nach anderem Fließtext steht. Damit stimmen Anforderung, Implementierung, README und Testvertrag überein.
+
+Die Routentests prüfen über eine reale lokale HTTP-Verbindung ein Issue ohne Mention, einen Kommentar des Bot-Kontos, einen generierten Dev-Assist-Kommentar sowie zwei unterschiedliche Delivery-IDs mit identischer GitLab-Objekt-ID. Ignorierte Ereignisse antworten schnell mit HTTP 202 und einem maschinenlesbaren Grund; verschiedene Lieferungen werden nicht irrtümlich über die Objekt-ID zusammengeführt. Nicht getestet werden eine erfolgreiche Analyseanforderung, ein erfolgreicher Publish-Aufruf und die asynchrone Fehlerbehandlung. Die schnelle Antwortarchitektur aus NFA-8 ist damit für ignorierte Ereignisse belegt, für den positiven Hintergrundprozess aber nur durch Codeinspektion nachvollziehbar.
+
+\subsection{Webhook-Authentifizierung und Kommentarbereinigung}
+
+\path{tests/auth.test.ts} deckt sechs Fälle ab: fail-closed ohne konfiguriertes Secret, eine gültige aktuelle Standard-Webhooks-Signatur, mehrere übermittelte Signaturen, abgelaufene Zeitstempel, ungültig formatierte Signing Tokens sowie gültige und ungültige Legacy-Token. Der Test erzeugt einen 32-Byte-Schlüssel, kodiert ihn als \path{whsec_<base64>} und signiert \path{message_id.timestamp.body} mit HMAC-SHA256. Die Anwendung vergleicht den erwarteten Wert mit Präfix \path{v1,} konstantzeitlich und erzwingt ein konfigurierbares Aktualitätsfenster (vgl. GitLab Docs, o. J.a, Abschnitt "Signing tokens"). Damit ist der dokumentierte externe Vertrag wesentlich genauer als im Ausgangsstand abgebildet.
+
+Ein verbleibendes Risiko liegt in Versions- und Integrationsunterschieden. Die Tests erzeugen dokumentationsnahe Header lokal, stammen aber nicht aus einer realen GitLab-19-Lieferung. Ein produktiver Smoke-Test mit einem echten Projekt und festgehaltener GitLab-Version bleibt erforderlich. Für ältere Installationen ist \path{X-Gitlab-Token} über ein getrenntes Secret verfügbar; eine vorhandene ungültige Signing-Signatur fällt bewusst nicht auf den schwächeren Mechanismus zurück.
+
+Die sechs Cleanup-Tests prüfen, dass Systemnotes und normale Nutzerkommentare erhalten bleiben, während Kommentare mit \texttt{@dev-assist} oder generierten Dev-Assist-Markern löschbar sind. Das reduziert das Risiko, beim Publish fachliche Diskussionen unbeabsichtigt zu entfernen. Ein zusätzlicher Publisher-Test schreibt reale temporäre Kontextdateien und verwendet einen simulierten GitLab-Client. Er weist nach, dass die Implementierung das Issue vor dem best-effort Cleanup aktualisiert, sodass ein fehlgeschlagener Issue-Write nicht bereits zur Löschung der Diskussion führt. Nicht getestet sind weiterhin Einzelfehler während der vollständigen Mutationskette und reale GitLab-Schreibvorgänge.
+
+\subsection{Schema-Validierung und Ausgabeformatierung}
+
+Die Schema-Tests gehören zu den stärksten deterministischen Schutzmechanismen. Das aktuelle kompakte Format verlangt exakt die Felder \path{title}, \path{description}, \path{acceptanceCriteria}, \path{technicalContext}, \path{proposedSolution} und \path{openQuestions}. Fehlende Felder, unbekannte Eigenschaften, falsche Feldtypen und nicht textuelle Array-Elemente werden abgelehnt. Außerdem wird JSON innerhalb eines Markdown-Codeblocks korrekt extrahiert. Damit ist belegt, dass beliebiger Freitext oder ein älteres Antwortformat nicht unbemerkt als gültige Analyse weiterverarbeitet wird.
+
+Gleichzeitig besteht eine Abweichung zur Anforderung FA-8 und zur in Kapitel 3 beschriebenen Zielstruktur. Dort werden unter anderem \texttt{summary}, \texttt{sourceBasis}, ein verschachteltes \texttt{implementationTicket}, Risiken und Validierungsschritte gefordert. Der aktuelle Code lehnt dieses ältere, umfangreichere Format ausdrücklich als ungültig ab. Das implementierte Kompaktschema ist streng validiert, bildet aber weniger fachliche Kategorien ab. Für die Qualitätssicherung bedeutet dies: Die strukturelle Validierung des aktuellen Schemas ist gut nachgewiesen; die Erfüllung der ursprünglichen fachlichen Zielstruktur ist nur teilweise gegeben.
+
+Sieben Formatter-Tests prüfen die vier sichtbaren Abschnitte Description, Acceptance Criteria, Technical Context \& Logs und Proposed Solution. Leere Abschnitte erhalten einen eindeutigen Platzhalter. Nummerierungspräfixe werden normalisiert, offene Fragen in den technischen Kontext übernommen und führende Markdown-Syntax wird neutralisiert. Besonders die Tests zu Überschriften, Codezäunen, Blockzitaten und horizontalen Trennlinien verhindern, dass Modelltext die vorgegebene Ticketstruktur unbeabsichtigt aufbricht. Diese Tests belegen die syntaktische Stabilität des gerenderten Markdown. Ob die Inhalte fachlich richtig, vollständig und für Entwicklerinnen und Entwickler hilfreich sind, bleibt davon unberührt.
+
+\subsection{Prompt, Rückfragen und Opencode-Ausgabe}
+
+\path{tests/aiPrompt.test.ts} prüft sieben Eigenschaften des Analysepfads. Der Prompt fordert ausschließlich das kompakte JSON-Format, die statische Opencode-Anweisung verwendet dieselbe Terminologie, eine Repository-Zusammenfassung wird vor dem Issue-Kontext eingefügt und frühere Dev-Assist-Rückfragen mit späteren Nutzerantworten werden hervorgehoben. Bereits beantwortete oder stark ähnlich umformulierte Fragen werden aus \texttt{openQuestions} entfernt. Ein Mock-Szenario prüft außerdem, dass der ursprüngliche Titel erhalten bleibt und keine nicht belegten Implementierungsdetails wie Handler oder Services ergänzt werden.
+
+Diese Tests adressieren ein praktisches Dialogproblem: Rückfragen sollen nicht in Schleifen wiederholt werden. Sie prüfen dafür eine deterministische Ähnlichkeitsheuristik. Nicht abgedeckt sind längere Gesprächsverläufe, widersprüchliche Antworten, mehrsprachige Fragen, Antworten ohne erneute Mention oder Grenzfälle der Ähnlichkeitsschwelle. Ebenso wird nicht geprüft, ob ein reales Modell trotz Promptanweisung bereits beantwortete Fragen in anderer Form erneut erzeugt.
+
+Der Opencode-Test ersetzt die reale CLI durch ein temporäres Testprogramm. Zunächst liefert der simulierte \texttt{opencode run}-Aufruf nur eine Session-ID. Danach stellt \texttt{opencode export} einen Gesprächsverlauf bereit, der sowohl das Schema-Beispiel aus dem Nutzerprompt als auch die spätere Agentenantwort enthält. Der Test belegt, dass der Export-Fallback die finale Antwort auswählt und nicht versehentlich das formal gültige Prompt-Beispiel veröffentlicht. Zugleich wird der Prozess ohne unsichere Shell-Verkettung gestartet. Weitere Tests prüfen ANSI-Bereinigung, Extraktion verschachtelter Texte, Modellnamen und die Erfassung von Standardausgabe, Fehlerausgabe und Exit-Code. Nicht geprüft werden Timeout und Prozessabbruch, sehr große Antworten, reale CLI-Versionsunterschiede oder Modellfehler.
+
+\subsection{Repository-Kontext, Process und Publish}
+
+Vier Repository-Summary-Tests verwenden einen simulierten GitLab-Client. Sie prüfen Projektmetadaten, Sprachen, Dateibaum, Schlüsseldateien, Caching sowie die Extraktion von Markdown aus direkter oder JSON-formatierter Opencode-Ausgabe. Zusätzlich wird kontrolliert, dass der Prompt vor der angehängten Kontextdatei an die CLI übergeben wird. Damit ist die Zusammensetzung der Repository-Daten ohne externen Zugriff reproduzierbar.
+
+Die Process- und Publisher-Tests bleiben enger begrenzt. Ein Process-Test stellt sicher, dass der generierte GitLab-Titel getrennt vom vierteiligen Markdown-Text gespeichert wird. Drei reine Publisher-Tests prüfen das aktuelle Format sowie die Abwärtskompatibilität zu älteren Kontextdokumenten, bei denen ein eingebetteter Titel entfernt oder aus dem Markdown rekonstruiert wird. Der vierte Publisher-Test schreibt und liest \path{context.md} und \path{context.json} in einem temporären Verzeichnis und prüft die sichere Reihenfolge von Issue-Update und Kommentarbereinigung. Nicht getestet werden beschädigte Kontextdateien, GitLab-Fehler beim Löschen oder Aktualisieren und die Garantie, dass ohne vorherigen Process-Schritt keine produktive Änderung erfolgt. Letzteres ergibt sich zwar aus dem erforderlichen Lesezugriff, ist aber nicht als eigener Systemtest dokumentiert.
+
+\section{Simulation ohne reale GitLab- oder Opencode-Abhängigkeit}
+
+NFA-2 fordert ausdrücklich, dass Dev-Assist ohne reales GitLab-Projekt und ohne kostenpflichtigen KI-Aufruf testbar ist. Diese Anforderung ist im aktuellen Stand gut umgesetzt. Der Mock-Provider erzeugt eine deterministische Analyse. GitLab-Daten für die Repository-Zusammenfassung werden durch ein lokales Testobjekt bereitgestellt. Opencode wird durch temporäre ausführbare Testprogramme ersetzt. Die HTTP-Route läuft auf einem lokalen, zufällig vergebenen Port. Dadurch benötigt die Testsuite weder Zugangsdaten noch Netzwerkzugriff und kann schnell wiederholt werden.
+
+Die Simulation erfüllt drei Zwecke. Erstens isoliert sie Fehler: Schlägt ein Schema-Test fehl, ist kein schwankendes Modellverhalten die Ursache. Zweitens verhindert sie Kosten und Seiteneffekte, etwa das Erstellen oder Löschen realer GitLab-Kommentare. Drittens verbessert sie die Wiederholbarkeit, weil dieselben Eingaben dieselben Ergebnisse erzeugen.
+
+Eine Simulation kann den externen Vertrag jedoch nur dann zuverlässig vertreten, wenn die Testdoubles dessen Verhalten korrekt abbilden. Der Ausgangsstand der Webhook-Signaturprüfung zeigte diese Grenze: Ein selbst erzeugter Test-HMAC bestätigte eine intern konsistente, aber gegenüber GitLab falsche Implementierung. Die überarbeiteten Tests orientieren sich deshalb unmittelbar an den dokumentierten Headern und Prüfschritten, bleiben aber lokale Simulationen. Auch der simulierte Opencode-Prozess bildet nur die erwarteten Ausgabefälle ab. Änderungen an CLI-Argumenten, JSONL-Ereignissen oder Exportformaten werden erst sichtbar, wenn ein Test gegen eine reale unterstützte Version ausgeführt wird. Die vorhandenen Tests sind deshalb als Komponentenprüfungen zu bewerten, nicht als vollständige Ende-zu-Ende-Nachweise.
+
+\section{Webhook-Randfälle und Robustheitsbefunde}
+
+Die vorhandenen Testfälle decken mehrere für Webhook-Systeme typische Randfälle ab:
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.23\textwidth}>{\raggedright\arraybackslash}p{0.44\textwidth}>{\raggedright\arraybackslash}p{0.23\textwidth}@{}}
+\toprule
+\textbf{Randfall} & \textbf{Erwartetes und getestetes Verhalten} & \textbf{Bewertung} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Randfall} & \textbf{Erwartetes und getestetes Verhalten} & \textbf{Bewertung} \\
+\midrule
+\endhead
+Ereignis ohne Mention & HTTP 202, keine Analyse, Grund \texttt{no-mention} & nachgewiesen \\
+Kommentar des Bot-Kontos & wird als \texttt{self-authored} ignoriert & nachgewiesen \\
+Generierter Dev-Assist-Kommentar & wird anhand von Markern ignoriert & nachgewiesen \\
+Publish-Mention am Anfang eines Kommentars & Publish-Kommando wird erkannt & nachgewiesen \\
+Fehlende, ungültige oder veraltete Webhook-Signatur & standardmäßig Ablehnung; aktuelles Standard-Webhooks-Format und Legacy-Token geprüft & dokumentationsnah nachgewiesen \\
+Ungültige oder zusätzliche KI-Felder & Schema-Validierung lehnt Antwort ab & nachgewiesen \\
+Leere Ticketabschnitte & sichtbarer Platzhalter statt leerer Struktur & nachgewiesen \\
+Markdown-Steuerzeichen in Modellinhalten & Struktur bleibt auf vier Hauptabschnitte begrenzt & nachgewiesen \\
+Bereits beantwortete Rückfrage & ähnliche offene Frage wird entfernt & für die geprüften Formulierungen nachgewiesen \\
+Opencode-Stream ohne finale Textantwort & Session wird exportiert und Analyse daraus gelesen & nachgewiesen \\
+Schema-Beispiel vor finaler Agentenantwort & finale Antwort wird bevorzugt; Beispieltitel wird verworfen & nachgewiesen \\
+Traversal-Sequenz in Projekt- oder Issue-ID & Pfadbildung beziehungsweise manuelle Route lehnt nichtnumerische ID ab & nachgewiesen \\
+Manueller HTTP-Aufruf ohne Bearer-Token & Route ist ohne konfigurierte Authentifizierung deaktiviert & Hilfsfunktion nachgewiesen \\
+Systemnote beim Cleanup & wird nicht gelöscht & nachgewiesen \\
+\bottomrule
+\end{longtable}
+
+Mehrere relevante Randfälle bleiben offen. Für die In-Memory-Deduplication sind Headerpriorität und Body-Hash geprüft, nicht jedoch zwei gleichzeitige Webhooks oder das Verhalten nach Ablauf der TTL. Unvollständige Payloads mit unbekannter Projekt- oder Issue-ID werden vor der Verarbeitung abgelehnt, aber nicht in einer vollständigen positiven Route bis zum Processor verfolgt. Ebenso fehlen Last-, Langzeit- und Ressourcenprüfungen. NFA-3, NFA-7 und NFA-8 sind daher weiterhin nur teilweise abgesichert.
+
+\section{Bewertungskriterien für die inhaltliche Ticketqualität}
+
+Die automatisierten Tests prüfen vor allem Struktur und Kontrollfluss. Die eigentliche Forschungsfrage betrifft jedoch auch die Nutzbarkeit der erzeugten Tickets. Dafür werden Kriterien benötigt, die über "JSON ist gültig" hinausgehen. Die Forschung aus Kapitel 2 bietet hierfür eine Grundlage.
+
+Bettenburg et al. zeigen, dass Entwicklungsteams unter anderem Reproduktionsschritte, Stack Traces und Testfälle als hilfreich bewerten, während diese Informationen von meldenden Personen häufig nicht bereitgestellt werden (vgl. Bettenburg et al., 2008, S. 308 f.). Breu et al. identifizieren konkrete Informationsbedarfe wie Reproduktionsschritte, Versionen, Betriebssysteme, Beispiele, Ausgaben und Screenshots (vgl. Breu et al., 2010, S. 303). Chaparro et al. heben beobachtetes Verhalten, erwartetes Verhalten und Schritte zur Reproduktion hervor und zeigen, dass gerade diese Bestandteile oft fehlen (vgl. Chaparro et al., 2017, S. 396 f.). Lucassen et al. unterscheiden bei kurzen Anforderungen syntaktische, semantische und pragmatische Qualität (vgl. Lucassen et al., 2016, S. 383 f. und S. 386 f.). Aus diesen Arbeiten wird folgendes Bewertungsraster abgeleitet:
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth}>{\raggedright\arraybackslash}p{0.45\textwidth}>{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
+\toprule
+\textbf{Kriterium} & \textbf{Operationalisierung für Dev-Assist} & \textbf{Bewertungsskala} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Kriterium} & \textbf{Operationalisierung für Dev-Assist} & \textbf{Bewertungsskala} \\
+\midrule
+\endhead
+Erkennung fehlender Informationen & Der Vorschlag oder die Rückfrage benennt fehlende Angaben zu Ziel, erwartetem Verhalten, Reproduktion, Randbedingungen oder Akzeptanz. & 0 = Lücke übersehen; 1 = allgemein benannt; 2 = konkret und kontextbezogen benannt \\
+Präzision der Rückfragen & Fragen sind einzeln beantwortbar, beziehen sich auf vorhandenen Kontext und verlangen keine unnötigen internen Implementierungsentscheidungen. & 0 = unklar/irrelevant; 1 = teilweise präzise; 2 = präzise und handlungsorientiert \\
+Strukturelle Nutzbarkeit & Titel, Beschreibung, Akzeptanzkriterien, technischer Kontext und Lösungsvorschlag sind getrennt, lesbar und ohne widersprüchliche Duplikate. & 0 = unbrauchbar; 1 = nachbearbeitungsbedürftig; 2 = direkt nutzbare Struktur \\
+Prüfbarkeit & Akzeptanzkriterien beschreiben beobachtbare Ergebnisse und relevante Randfälle. & 0 = nicht prüfbar; 1 = teilweise prüfbar; 2 = eindeutig prüfbar \\
+Grounding und Unsicherheitskennzeichnung & Der Vorschlag erfindet keine nicht belegten Fakten; Annahmen und offene Fragen bleiben sichtbar. & 0 = unbelegte Tatsachen; 1 = gemischt; 2 = konsequent abgesichert \\
+Konsistenz mit dem Kontext & Ticketbeschreibung, Kommentare und gegebenenfalls Repository-Hinweise werden widerspruchsfrei zusammengeführt. & 0 = widersprüchlich; 1 = kleinere Inkonsistenzen; 2 = konsistent \\
+\bottomrule
+\end{longtable}
+
+Das Raster wäre auf ein vorab festgelegtes Korpus anzuwenden, das mindestens unvollständige Bug Reports, vage Feature-Wünsche, bereits gute Tickets, widersprüchliche Kommentarverläufe und sicherheitskritische Eingaben enthält. Um die Modellvariabilität zu berücksichtigen, müsste jedes Szenario mehrfach und gegebenenfalls mit mehreren Modellkonfigurationen ausgeführt werden. Mindestens zwei fachkundige Bewertende sollten die Ergebnisse unabhängig beurteilen; Unterschiede wären anschließend zu diskutieren. Erst ein solcher Aufbau könnte belastbar beantworten, wie häufig Dev-Assist fehlende Informationen erkennt oder direkt nutzbare Vorschläge erzeugt.
+
+Der aktuelle Teststand liefert dafür nur Teilindikatoren. Der Formatter erzwingt eine stabile Struktur. Das Kompaktschema verhindert freie Zusatzfelder. Das Mock-Szenario vermeidet bestimmte erfundene Implementierungsdetails. Beantwortete Fragen werden nicht erneut ausgegeben. Diese Befunde unterstützen syntaktische Qualität und einzelne Grounding-Regeln. Die semantische und pragmatische Qualität realer Opencode-Modellantworten wurde jedoch weder an einem Ticketkorpus noch durch Entwicklerinnen und Entwickler bewertet. Die Fragen "Erkennt der Assistent fehlende Informationen?", "Sind Rückfragen präzise?" und "Sind Vorschläge unmittelbar nutzbar?" können daher noch nicht allgemein bejaht werden.
+
+NIST weist darauf hin, dass generative KI überzeugend formulierte, aber falsche oder irreführende Inhalte erzeugen kann (vgl. National Institute of Standards and Technology, 2024, S. 4 und S. 6). Schema-Validierung reduziert dieses Risiko nicht inhaltlich: Eine Halluzination kann syntaktisch korrekt in einem String stehen. Der kontrollierte Publish-Schritt bleibt deshalb auch bei guter Testabdeckung notwendig. Er ist kein Ersatz für inhaltliche Evaluation, aber eine wirksame Begrenzung möglicher Folgen.
+
+\section{Nachverfolgbarkeit der funktionalen Anforderungen}
+
+Der Abgleich mit den funktionalen Anforderungen aus Kapitel 3 ergibt ein differenziertes Bild:
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.28\textwidth}>{\raggedright\arraybackslash}p{0.37\textwidth}@{}}
+\toprule
+\textbf{Anforderung} & \textbf{Vorhandene Evidenz} & \textbf{Ergebnis} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Anforderung} & \textbf{Vorhandene Evidenz} & \textbf{Ergebnis} \\
+\midrule
+\endhead
+FA-1 Explizite Aktivierung am Textanfang & Parser- und Routentests & \textbf{Nachgewiesen:} Mention wird am Anfang der ersten inhaltlichen Zeile akzeptiert; Titel- und Inline-Mentions werden abgelehnt. \\
+FA-2 Verarbeitung relevanter GitLab-Ereignisse & Issue-/Note-Parser und lokale Routentests & \textbf{Teilweise nachgewiesen:} Payload-Grundformen sind abgedeckt, aber keine reale GitLab-Lieferung und kein positiver Ende-zu-Ende-Pfad. \\
+FA-3 Analyse-/Publish-Kommando & Parser-Tests für normale Aktivierung und Publish & \textbf{Nachgewiesen} für die getesteten Textformen und die geforderte Mention-Position. \\
+FA-4 Abruf des Ticketkontexts & Implementierung und simulierte Repository-Daten & \textbf{Teilweise nachgewiesen:} GitLab-Abruf im Processor ist nicht als Integrationstest abgedeckt. \\
+FA-5 Gemeinsame Analyse von Beschreibung und Kommentaren & Prompt-Tests mit Issue, Kommentaren, Antworten und Repository-Summary & \textbf{Strukturell nachgewiesen}, semantische Zusammenführung durch ein reales Modell nicht bewertet. \\
+FA-6 Gezielte Rückfragen & Formatter- und Clarification-Tests & \textbf{Teilweise nachgewiesen:} Darstellung und Wiederholungsfilter funktionieren; Präzision realer Modellfragen ist offen. \\
+FA-7 Strukturierte Ticketvorschläge & Formatter-, Mock- und Publisher-Hilfstests & \textbf{Teilweise nachgewiesen:} vierteilige Kompaktstruktur ist stabil, aber umfangreichere Zielstruktur und fachliche Nutzbarkeit sind nicht vollständig belegt. \\
+FA-8 Maschinenlesbares Analyseformat & sechs Schema-Tests & \textbf{Nachgewiesen für das aktuelle Kompaktschema}, zugleich Abweichung von der in Kapitel 3 geforderten umfangreicheren Struktur. \\
+FA-9 Veröffentlichung als Kommentar & Formatter und Implementierung von \texttt{createNote} & \textbf{Teilweise nachgewiesen:} Kommentartext ist getestet, reale GitLab-Veröffentlichung nicht. \\
+FA-10 Persistenz des Kontexts & Implementierung, Trennung von Titel und Markdown & \textbf{Teilweise nachgewiesen:} Dateischreib- und Lesepfad besitzt keinen eigenen automatisierten Integrationstest. \\
+FA-11 Kontrollierter Publish & Cleanup- und Publisher-Hilfstests & \textbf{Teilweise nachgewiesen:} Aufbereitung und Filter sind geprüft, vollständige Mutation eines realen oder simulierten GitLab-Clients nicht. \\
+\bottomrule
+\end{longtable}
+
+Der wichtigste positive Befund ist die klare Validierungs- und Freigabegrenze: Ein aktuelles Analyseobjekt muss exakt dem Kompaktschema entsprechen, und der Titel wird getrennt von der Beschreibung für den Publish vorbereitet. Die Aktivierungsregel ist nach der Überarbeitung konsistent umgesetzt. Als fachliche Abweichung bleibt der Schema-Drift zwischen der umfangreichen Zielstruktur aus Kapitel 3 und dem kompakteren aktuellen Code; diese Reduktion sollte als bewusste Entwurfsentscheidung begründet oder in einer späteren Version aufgehoben werden.
+
+\clearpage
+\section{Nachverfolgbarkeit der nicht-funktionalen Anforderungen}
+
+Auch die nicht-funktionalen Anforderungen sind unterschiedlich stark abgesichert:
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.65\textwidth}@{}}
+\toprule
+\textbf{Anforderung} & \textbf{Bewertung} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Anforderung} & \textbf{Bewertung} \\
+\midrule
+\endhead
+NFA-1 Wartbarkeit & Die Modulgrenzen sind im Quellcode klar und der Build ist erfolgreich. Eine eigenständige Wartbarkeitsmessung wurde nicht durchgeführt. \\
+NFA-2 Testbarkeit ohne externe Abhängigkeiten & \textbf{Gut nachgewiesen:} alle 71 Tests laufen ohne reales GitLab und ohne realen Modellaufruf. \\
+NFA-3 Robustheit & \textbf{Teilweise nachgewiesen:} ungültiges JSON, schwache Inhalte und einige Prozessvarianten sind abgedeckt; externe Fehlerketten, beschädigte Dateien und Parallelität fehlen. \\
+NFA-4 Logging & Umfangreiche Konsolenlogs sind implementiert, ihre Vollständigkeit und Secret-Freiheit werden nicht automatisiert geprüft. \\
+NFA-5 Begrenzung von KI-Risiken & Schema, Promptregeln, Grounding im Mock und expliziter Publish begrenzen Folgen. Prompt-Injection- und Halluzinationsresistenz realer Modelle sind nicht getestet. \\
+NFA-6 Webhook-Sicherheit & \textbf{Dokumentationsnah nachgewiesen:} aktuelles Signing-Token-Format, konstantzeitlicher Vergleich, Zeitfenster, fail-closed-Standard und Legacy-Migration sind getestet; ein realer GitLab-Smoke-Test fehlt. \\
+NFA-7 Bot-Schleifen und Duplikate & Bot- und Markerfilter sowie Delivery-ID-/Body-Hash-Bildung sind nachgewiesen; Parallelfälle und persistente Deduplizierung bleiben offen. \\
+NFA-8 Schnelle Webhook-Antwort & HTTP 202 ist für ignorierte Ereignisse nachgewiesen; positiver asynchroner Pfad und Lastverhalten sind nicht gemessen. \\
+NFA-9 Konfigurierbarkeit & Variablen für Tunnel, Bot-Namen und strikte Webhook-Authentifizierung sind getestet; die Gesamtheit der Konfiguration und ungültige Zahlenwerte sind nicht vollständig abgedeckt. \\
+NFA-10 Prozessintegrierte Bedienbarkeit & Die Bedienung ist ohne eigene GUI über GitLab vorgesehen. Eine Usability- oder Feldbewertung mit Nutzenden fehlt. \\
+\bottomrule
+\end{longtable}
+
+Insgesamt ist NFA-2 am stärksten belegt. Das Projekt lässt sich schnell und ohne Zugangsdaten testen. Bei Sicherheit, Robustheit unter externen Fehlern und Bedienbarkeit ist der Nachweis deutlich schwächer. Diese Bereiche sollten vor einem produktiven Einsatz priorisiert werden.
+
+\section{Grenzen und Bedrohungen der Aussagekraft}
+
+Easterbrook et al. unterscheiden unter anderem Konstruktvalidität, interne Validität, externe Validität und Reliabilität und empfehlen, Schwächen eines Untersuchungsdesigns explizit offenzulegen (vgl. Easterbrook et al., 2008, S. 302 f.). Auf die vorliegende Evaluation übertragen ergeben sich folgende Grenzen.
+
+\textbf{Konstruktvalidität.} Die Zahl bestandener Tests ist kein direktes Maß für Ticketqualität. Die Tests operationalisieren vor allem technische Korrektheit, etwa Schemaform, Textformat oder Parserentscheidungen. Begriffe wie "präzise Rückfrage" oder "entwicklergerechtes Ticket" werden erst durch das Raster in Abschnitt 6.7 konkretisiert, aber noch nicht empirisch erhoben. Auch der erfolgreiche Build misst nur statische Konsistenz, nicht Laufzeitrobustheit.
+
+\textbf{Interne Validität.} Tests und Implementierung stammen aus demselben Projektkontext. Dadurch können Testdoubles dieselben falschen Annahmen wie der Produktivcode enthalten. Die im Ausgangsstand vorhandene Signaturprüfung war ein konkretes Beispiel: Ihre Tests erzeugten genau das proprietäre Format, das die Implementierung erwartete. Erst der Abgleich mit der aktuellen GitLab-Dokumentation machte die Vertragsabweichung sichtbar und führte zur Überarbeitung. Außerdem können globale Umgebungsvariablen und Modulinitialisierung Testergebnisse beeinflussen, auch wenn die vorhandenen Tests ihre Änderungen überwiegend zurücksetzen.
+
+\textbf{Externe Validität.} Der dokumentierte Reproduktionslauf betrifft ein einzelnes TypeScript-Projekt in einer isolierten Linux-Umgebung. Es wurden weder unterschiedliche GitLab-Versionen noch selbstverwaltete Instanzen, reale Netzwerkfehler, verschiedene Opencode-Versionen oder unterschiedliche Modelle geprüft. Es gibt kein repräsentatives Ticketkorpus und keine Untersuchung mit Entwicklungsteams. Aussagen über andere Projekte, Organisationen, Sprachen oder Domänen sind daher nicht generalisierbar.
+
+\textbf{Reliabilität.} Der deterministische Teil ist durch feste Testdaten, Mock-Objekte und dokumentierte Befehle gut wiederholbar. Der nichtdeterministische Kern wurde aus der Testsuite ausgeklammert. Das erhöht die Reproduzierbarkeit der technischen Tests, verhindert aber Aussagen über Streuung und Stabilität realer Modellantworten. Für eine spätere Replikation müssten Modell, Version, Prompt, Parameter, Zeitstempel, Ticketkorpus und Bewertungsprozess festgehalten werden.
+
+Weitere technische Grenzen sind die ungleichmäßige Coverage, fehlende Last- und Parallelitätstests, keine automatisierte dynamische Sicherheitsanalyse, keine Tests des Dateisystems unter Fehlerbedingungen und keine vollständige GitLab-Ende-zu-Ende-Prüfung. Easterbrook et al. weisen allgemein darauf hin, dass empirische Ergebnisse keine sichere Gewissheit erzeugen und durch ergänzende Methoden und Replikationen belastbarer werden (vgl. Easterbrook et al., 2008, S. 305). Für Dev-Assist wären insbesondere ein realer GitLab-Vertragstest, ein kleines kuratiertes Ticketkorpus, wiederholte reale Modellläufe und eine Bewertung durch mehrere Entwicklerinnen und Entwickler sinnvolle Ergänzungen.
+
+\section{Zwischenfazit}
+
+Die Qualitätssicherung zeigt einen technisch stabilen, aber noch nicht vollständig validierten Prototyp. Der TypeScript-Build ist erfolgreich, und alle 71 automatisierten Tests in 17 Suiten bestehen. Besonders gut abgesichert sind das aktuelle kompakte JSON-Schema, die vierteilige Markdown-Ausgabe, die Webhook-Signaturprüfung einschließlich Replay-Schutz, die Erkennung eigener beziehungsweise generierter Kommentare, Sicherheitsgrenzen für Pfade und manuelle Routen, die sichere Publish-Reihenfolge, die Verarbeitung beantworteter Rückfragen, Repository-Zusammenfassungen mit simulierten Abhängigkeiten und der Opencode-Export-Fallback. NFA-2, die lokale Testbarkeit ohne reale GitLab- oder KI-Abhängigkeit, wird damit überzeugend erfüllt.
+
+Die Evaluation macht zugleich wesentliche Grenzen sichtbar. Das aktuelle Kompaktschema weicht von der umfangreicheren Zielstruktur aus Kapitel 3 ab. Die Signaturtests bilden den dokumentierten GitLab-Vertrag nach, ersetzen aber keinen realen Integrationstest. Positive Ende-zu-Ende-Pfade für Process, Persistenz, Kommentarerstellung und Publish fehlen. Vor allem wurde die semantische Qualität realer Modellantworten noch nicht an einem Korpus oder mit Entwicklerinnen und Entwicklern bewertet.
+
+Damit kann für den untersuchten Stand festgehalten werden: Die deterministischen Grenzen um die KI-Komponente sind in wichtigen Teilen testbar und stabil. Ein allgemeiner Nachweis, dass Dev-Assist fehlende Informationen zuverlässig erkennt, stets präzise Rückfragen stellt und unmittelbar nutzbare Ticketvorschläge erzeugt, liegt noch nicht vor. Für einen produktionsnahen nächsten Schritt sind ein realer GitLab-Vertragstest, ein konsistentes Zielschema, vollständige Process-/Publish-Integrationstests sowie eine wiederholte inhaltliche Evaluation mit realen Modellläufen erforderlich.
+
+\endinput
+\clearpage
+\section*{Quellen zu Kapitel 6}
+
+Bettenburg, Nicolas; Just, Sascha; Schröter, Adrian; Weiss, Cathrin; Premraj, Rahul; Zimmermann, Thomas 2008. „What Makes a Good Bug Report?“, in Proceedings of the 16th ACM SIGSOFT International Symposium on Foundations of Software Engineering, S. 308-318. New York: ACM. \url{https://doi.org/10.1145/1453101.1453146}.
+
+Breu, Silvia; Premraj, Rahul; Sillito, Jonathan; Zimmermann, Thomas 2010. „Information Needs in Bug Reports. Improving Cooperation Between Developers and Users“, in Proceedings of the 2010 ACM Conference on Computer Supported Cooperative Work, S. 301-310. New York: ACM. \url{https://doi.org/10.1145/1718918.1718973}.
+
+Chaparro, Oscar; Lu, Jing; Zampetti, Fiorella; Moreno, Laura; Di Penta, Massimiliano; Marcus, Andrian; Bavota, Gabriele; Ng, Vincent 2017. „Detecting Missing Information in Bug Descriptions“, in Proceedings of the 2017 11th Joint Meeting on Foundations of Software Engineering, S. 396-407. New York: ACM. \url{https://doi.org/10.1145/3106237.3106285}.
+
+Easterbrook, Steve; Singer, Janice; Storey, Margaret-Anne; Damian, Daniela 2008. „Selecting Empirical Methods for Software Engineering Research“, in Shull, Forrest; Singer, Janice; Sjøberg, Dag I. K. (Hrsg.): \emph{Guide to Advanced Empirical Software Engineering}, S. 285-311. London: Springer. \url{https://doi.org/10.1007/978-1-84800-044-5_11}.
+
+GitLab Docs o. J.a. Webhooks. \url{https://docs.gitlab.com/user/project/integrations/webhooks/} (Zugriff vom 21.07.2026).
+
+Lucassen, Garm; Dalpiaz, Fabiano; van der Werf, Jan Martijn E. M.; Brinkkemper, Sjaak 2016. „Improving agile requirements. The Quality User Story framework and tool“, in \emph{Requirements Engineering} 21, 3, S. 383-403. \url{https://doi.org/10.1007/s00766-016-0250-x}.
+
+National Institute of Standards and Technology 2024. \emph{Artificial Intelligence Risk Management Framework. Generative Artificial Intelligence Profile}. NIST AI 600-1. \url{https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf}.
+
+Wohlin, Claes; Runeson, Per; Höst, Martin; Ohlsson, Magnus C.; Regnell, Björn; Wesslén, Anders 2012. \emph{Experimentation in Software Engineering}. Berlin, Heidelberg: Springer. \url{https://doi.org/10.1007/978-3-642-29044-2}.
+
+Projektinterne Arbeitsgrundlagen: \path{AGENTS.md}, \path{README.md}, \path{package.json}, \path{src/config.ts}, \path{src/routes/gitlabWebhooks.ts}, \path{src/services/gitlab/parser.ts}, \path{src/services/gitlab/mention.ts}, \path{src/services/gitlab/auth.ts}, \path{src/services/gitlab/cleanup.ts}, \path{src/services/gitlab/glab.ts}, \path{src/services/ai/instructions.ts}, \path{src/services/ai/service.ts}, \path{src/services/ai/schema.ts}, \path{src/services/ai/formatter.ts}, \path{src/services/ai/clarifications.ts}, \path{src/services/ai/opencodeRuntime.ts}, \path{src/services/repositorySummary.ts}, \path{src/services/processing/processor.ts}, \path{src/services/processing/publisher.ts}, \path{src/services/context/writer.ts}, \path{src/services/context/reader.ts}, \path{src/services/tunnel.ts}, \path{tests/aiOpencode.test.ts}, \path{tests/aiPrompt.test.ts}, \path{tests/auth.test.ts}, \path{tests/cleanup.test.ts}, \path{tests/config.test.ts}, \path{tests/formatter.test.ts}, \path{tests/gitlab.test.ts}, \path{tests/glab.test.ts}, \path{tests/opencodeRuntime.test.ts}, \path{tests/processor.test.ts}, \path{tests/publisher.test.ts}, \path{tests/repositorySummary.test.ts}, \path{tests/schema.test.ts}, \path{tests/tunnel.test.ts} und \path{tests/webhookRoute.test.ts}.

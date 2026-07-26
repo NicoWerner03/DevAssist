@@ -1,0 +1,182 @@
+\chapter{Diskussion}
+
+Kapitel 7 hat Dev-Assist als funktionsfähigen Proof of Concept eingeordnet: Der Prototyp verbindet GitLab-Ereignisse, Kontextaufbereitung, KI-Analyse, strukturierte Validierung, Rückfragen, lokale Persistenz und einen kontrollierten Publish-Schritt. Dieses technische Ergebnis beantwortet jedoch noch nicht, welchen tatsächlichen Nutzen das System in einem Entwicklungsteam erzeugt, wie verlässlich KI-generierte Tickervorschläge sind oder unter welchen organisatorischen Bedingungen ein produktiver Einsatz vertretbar wäre. Die nachfolgende Diskussion trennt deshalb zwischen nachgewiesenen Systemeigenschaften, plausiblen Nutzenpotenzialen und bislang offenen Wirkungsannahmen.
+
+Im Mittelpunkt stehen fünf Fragen: Wo kann Dev-Assist die Ticketarbeit sinnvoll unterstützen? Wie unterscheidet sich dieser Ansatz von ausschließlich manueller Ticketpflege? Welche Grenzen entstehen durch generative KI und begrenzten Kontext? Welche Risiken müssen technisch und organisatorisch beherrscht werden? Und wie wartbar beziehungsweise erweiterbar ist die gewählte Architektur? Die Diskussion greift damit die Ergebnisse aus Kapitel 6 und 7 auf, ohne aus einem lokalen Prototyp bereits eine allgemeine Aussage über Produktivität oder Ticketqualität abzuleiten.
+
+\section{Einordnung des Ergebnisbeitrags}
+
+Der wesentliche Beitrag des Prototyps liegt weniger in einer neuen Modellfähigkeit als in der kontrollierten Einbettung einer vorhandenen generativen KI in einen konkreten Arbeitsprozess. Sprachmodelle können natürliche Sprache flexibel strukturieren, doch für eine praktische Nutzung genügt eine plausible Textausgabe nicht. Dev-Assist ergänzt die Generierung daher um Ereignisfilter, Kontextauswahl, einen festen Antwortvertrag, Formatierung, Persistenz und eine menschliche Freigabegrenze. Das Ergebnis ist eine technische Prozesskette, in der die KI nur einen begrenzten Teil der Entscheidung übernimmt.
+
+Diese Einordnung ist für die Bewertung entscheidend. Die 71 automatisierten Tests weisen vor allem nach, dass deterministische Grenzen des Systems im geprüften Stand funktionieren. Dazu gehören Parsing, Webhook-Authentifizierung, Pfad- und API-Sicherheitsgrenzen, Publish-Reihenfolge, Schema, Formatierung, Kommentarfilter, Rückfragenlogik und mehrere Fallbacks. Sie weisen nicht nach, dass ein Modell fachliche Absichten stets korrekt erkennt. Ebenso zeigt der beispielhafte Ablauf aus Kapitel 7, wie der Kontrollfluss funktioniert, nicht wie häufig reale Vorschläge von Entwicklungsteams akzeptiert oder korrigiert würden. Der Beitrag ist damit zunächst ein Machbarkeits- und Architekturbeitrag.
+
+Gleichzeitig adressiert der Ansatz ein in der Literatur belegtes Problem. Bettenburg et al. zeigen eine Diskrepanz zwischen Informationen, die Entwicklerinnen und Entwickler benötigen, und Angaben, die meldende Personen ohne weitere Unterstützung bereitstellen können (vgl. Bettenburg et al., 2008, S. 308 f.). Breu et al. beschreiben Bug Reports als dialogische Artefakte, in denen fehlende Informationen durch Rückfragen und spätere Antworten ergänzt werden; ihre Untersuchung umfasst 600 Berichte aus Mozilla- und Eclipse-Projekten (vgl. Breu et al., 2010, S. 301 und S. 303). Dev-Assist überträgt dieses Muster auf einen GitLab-Workflow: Das System versucht nicht nur, einen Ausgangstext umzuschreiben, sondern bezieht Kommentare ein und kann eine Klärungsschleife anstoßen.
+
+Damit entsteht eine begründete Verbindung zwischen Problem und Lösungsansatz. Ob die konkrete Umsetzung das Problem in realen Teams tatsächlich besser löst als vorhandene Praktiken, bleibt dagegen empirisch offen. Die angemessene Aussage lautet daher: Der Prototyp zeigt einen technisch plausiblen Weg zur assistierten Ticketaufbereitung; einen allgemeinen Wirksamkeitsnachweis liefert er noch nicht.
+
+\section{Nutzen im Entwicklungsprozess}
+
+\subsection{Strukturierung und frühe Sichtbarkeit von Informationslücken}
+
+Ein potenzieller Nutzen liegt in der wiederholbaren Strukturierung heterogener Ticketinformationen. GitLab-Issues können Titel, Beschreibung, Kommentare, technische Hinweise und später getroffene Entscheidungen enthalten. In manuellen Abläufen bleiben diese Informationen häufig über den Verlauf verteilt. Dev-Assist führt den verfügbaren Kontext in einer kompakten Struktur aus Titel, Beschreibung, Akzeptanzkriterien, technischem Kontext, Lösungsvorschlag und offenen Fragen zusammen. Dadurch wird sichtbar, welche Art von Information vorhanden ist und welche noch fehlt.
+
+Die Literatur stützt die Relevanz dieser Strukturierungsaufgabe. Chaparro et al. identifizieren bei Bug Reports insbesondere beobachtetes Verhalten, erwartetes Verhalten und Reproduktionsschritte als zentrale Informationsarten und zeigen, dass solche Bestandteile häufig fehlen (vgl. Chaparro et al., 2017, S. 396 f. und S. 401 ff.). Lucassen et al. unterscheiden bei User Stories syntaktische, semantische und pragmatische Qualität; eine formal lesbare Anforderung kann demnach dennoch inhaltlich unzureichend oder für Beteiligte nicht nutzbar sein (vgl. Lucassen et al., 2016, S. 383 f. und S. 386 f.). Dev-Assist kann vor allem die syntaktische und strukturelle Ebene vereinheitlichen und fehlende Felder sichtbar machen. Semantische Richtigkeit und praktische Nutzbarkeit kann das Format allein nicht garantieren.
+
+Der frühe Zeitpunkt der Analyse ist ebenfalls relevant. Werden fehlende Zielangaben, Akzeptanzkriterien oder Randfälle erst während der Implementierung erkannt, entstehen Rückfragen zu einem Zeitpunkt, an dem bereits Annahmen in technische Entscheidungen eingeflossen sein können. Ein Assistenzsystem kann die Aufmerksamkeit früher auf solche Lücken lenken. Diese Wirkung ist im Prototyp als Mechanismus vorhanden, wurde jedoch nicht durch Durchlaufzeiten, Nacharbeitsquoten oder Teambeobachtungen gemessen. Von einer nachgewiesenen Beschleunigung kann daher nicht gesprochen werden.
+
+\subsection{Entlastung bei wiederkehrender Aufbereitungsarbeit}
+
+Ein weiterer möglicher Nutzen betrifft repetitive Arbeit: Überschriften vereinheitlichen, verstreute Aussagen zusammenführen, Akzeptanzkriterien als Liste formulieren, technische Hinweise abgrenzen und offene Punkte explizit ausweisen. Solche Tätigkeiten erfordern Aufmerksamkeit, sind aber nicht in jedem Fall die wertschöpfende fachliche Entscheidung selbst. Die Automatisierung eines ersten Entwurfs kann Personen einen strukturierten Ausgangspunkt liefern, den sie prüfen und korrigieren.
+
+Die Betonung liegt auf dem Entwurf. Eine automatisch längere Beschreibung ist nicht zwangsläufig besser. Sie kann bestehende Unklarheit lediglich sprachlich glätten oder durch zusätzliche, unbelegte Details verdecken. Der Nutzen entsteht nur, wenn das System gesicherte Informationen, Annahmen und offene Fragen unterscheidet. Die aktuelle Promptregel fordert diese Trennung, und der Formatter hält offene Fragen sichtbar. Dennoch bleibt die Zuordnung selbst modellabhängig. Eine fachlich falsche Annahme kann formal korrekt im technischen Kontext erscheinen und dadurch einen ungerechtfertigten Vertrauenseindruck erzeugen.
+
+Die lokale Persistenz bietet einen zusätzlichen Übergabewert. \path{context.md} ist sowohl für Menschen lesbar als auch für nachgelagerte Werkzeuge nutzbar; \path{context.json} trennt den vorgeschlagenen Titel von der Beschreibung. Damit kann derselbe freigegebene Kontext in einer späteren Entwicklungsphase verwendet werden, ohne die Diskussion vollständig neu zu rekonstruieren. Dieser Vorteil setzt allerdings voraus, dass der persistierte Stand aktuell gehalten, eindeutig einem Issue zugeordnet und vor der weiteren Nutzung geprüft wird.
+
+\subsection{Prozessintegration und kontrollierte Freigabe}
+
+Dev-Assist arbeitet innerhalb der bereits verwendeten GitLab-Oberfläche. Rückfragen, Antworten, Vorschau und Freigabe erscheinen im Issue beziehungsweise im Kommentarverlauf. Eine zusätzliche Benutzeroberfläche und ein separater Medienbruch sind für den Kernablauf nicht erforderlich. Diese Einbettung kann die Nutzungsschwelle reduzieren, weil Beteiligte ihren gewohnten Arbeitsort nicht verlassen müssen.
+
+Der getrennte Publish-Schritt unterstützt zugleich die Nachvollziehbarkeit. Vor der Übernahme ist der Vorschlag sichtbar; danach werden Titel und strukturierte Beschreibung gezielt aktualisiert. Das Modell besitzt keine unmittelbare GitLab-Schreib\-berechtigung. Diese Begrenzung folgt dem Grundsatz, dass ein LLM-gestütztes System nur die für seine Aufgabe notwendigen Funktionen und Berechtigungen erhalten sollte. OWASP beschreibt übermäßige Funktionalität, Berechtigungen oder Autonomie als Risiko "Excessive Agency" (vgl. OWASP, 2025b, Abschnitt "Excessive Agency").
+
+Menschliche Freigabe ist jedoch keine automatische Qualitätsgarantie. Unter Zeitdruck kann ein plausibel formulierter Vorschlag oberflächlich bestätigt werden. Der Prozess sollte deshalb nicht nur einen Publish-Befehl verlangen, sondern eine sinnvolle Prüfung ermöglichen: offene Fragen müssen sichtbar sein, Annahmen dürfen nicht als Fakten erscheinen, Änderungen sollten vor der Übernahme vergleichbar sein und Verantwortlichkeiten für die Freigabe müssen geklärt werden. Der Prototyp realisiert davon die sichtbare Vorschau und den expliziten Befehl, aber noch kein Rollenmodell, keine formale Review-Checkliste und keinen Änderungsvergleich.
+
+\section{Vergleich mit manueller Ticketpflege}
+
+Manuelle Ticketpflege besitzt Stärken, die ein generatives System nicht ersetzen kann. Beteiligte kennen fachliche Prioritäten, informelle Entscheidungen, politische Randbedingungen und nicht dokumentiertes Domänenwissen. Sie können Widersprüche aushandeln, Verantwortung übernehmen und entscheiden, ob eine Anforderung überhaupt sinnvoll ist. Gerade bei neuartigen oder konfliktbehafteten Aufgaben entsteht Ticketqualität durch Kommunikation, nicht durch Umformatierung.
+
+Die Schwäche rein manueller Pflege liegt in ihrer Abhängigkeit von Zeit, Erfahrung und individueller Sorgfalt. Unterschiedliche Personen verwenden unterschiedliche Strukturen; wichtige Informationen bleiben in Kommentaren; Akzeptanzkriterien werden nicht konsequent formuliert; Rückfragen erfolgen möglicherweise erst nach Beginn der Umsetzung. Breu et al. zeigen, dass Nachfragen in Bug-Tracking-Systemen ein wesentlicher Teil der Zusammenarbeit sind (vgl. Breu et al., 2010, S. 301 ff.). Werkzeuge wie BEE zeigen zudem, dass automatisierte Strukturanalyse und Rückmeldung direkt in den Ticketprozess eingebunden werden können (vgl. Song/Chaparro, 2020, S. 1551 f.).
+
+Für den Vergleich ergeben sich folgende Schwerpunkte:
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.38\textwidth}@{}}
+\toprule
+\textbf{Dimension} & \textbf{Ausschließlich manuelle Pflege} & \textbf{Assistierte Pflege mit Dev-Assist} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Dimension} & \textbf{Ausschließlich manuelle Pflege} & \textbf{Assistierte Pflege mit Dev-Assist} \\
+\midrule
+\endhead
+Kontextverständnis & kann Domänenwissen, implizite Ziele und soziale Abstimmung einbeziehen & ist auf bereitgestellten Ticket-, Kommentar- und Repository-Kontext begrenzt \\
+Formkonsistenz & hängt von Erfahrung, Zeit und Teamkonventionen ab & liefert wiederholt dieselbe kompakte Abschnittsstruktur \\
+Lückenerkennung & kann präzise und situationsbezogen sein, erfolgt aber nicht zwingend systematisch & prüft jeden aktivierten Vorgang nach denselben Regeln, kann relevante Lücken übersehen oder falsche Fragen stellen \\
+Verantwortung & liegt unmittelbar bei den beteiligten Personen & bleibt trotz Vorschlag und Publish technisch und fachlich bei den freigebenden Personen \\
+Aufwand & vollständige Strukturierung und Konsolidierung erfolgen manuell & erzeugt einen ersten Entwurf, ergänzt aber Prüf- und Korrekturaufwand \\
+\bottomrule
+\end{longtable}
+
+Der sinnvolle Zielzustand ist daher kein Ersatz-, sondern ein Kooperationsmodell. Dev-Assist übernimmt Routineaufbereitung, macht Unsicherheiten sichtbar und bietet eine konsistente Vorschau. Menschen prüfen fachliche Richtigkeit, ergänzen fehlenden Kontext, lösen Konflikte und verantworten die Übernahme. Ob dieses Modell insgesamt weniger Aufwand verursacht, hängt von der Qualität der Vorschläge ab. Sind viele Korrekturen erforderlich oder werden falsche Annahmen erst spät erkannt, kann der Prüfaufwand den Automatisierungsgewinn aufheben.
+
+Ein belastbarer Vergleich würde reale Tickets benötigen, die sowohl manuell als auch assistiert aufbereitet werden. Bewertet werden könnten Bearbeitungszeit, Zahl und Relevanz der Rückfragen, Vollständigkeit, Korrekturaufwand, Akzeptanzrate der Vorschläge und Übereinstimmung mehrerer Bewertender. Eine solche Untersuchung wurde nicht durchgeführt. Die Diskussion kann deshalb Prozessunterschiede begründen, aber keine Überlegenheit von Dev-Assist behaupten.
+
+\section{Grenzen KI-generierter Tickervorschläge}
+
+\subsection{Halluzinationen und falsche Annahmen}
+
+Das zentrale fachliche Risiko bleibt die Erzeugung plausibler, aber unbelegter Inhalte. NIST bezeichnet solche überzeugend dargestellten falschen oder fehlerhaften Inhalte als Confabulation beziehungsweise Hallucination (vgl. National Institute of Standards and Technology, 2024, S. 4 und S. 6). Huang et al. ordnen Halluzinationen als grundlegendes Zuverlässigkeitsproblem von Large Language Models ein (vgl. Huang et al., 2023, S. 1 f.). Für ein Ticketassistenzsystem sind nicht nur frei erfundene Tatsachen problematisch. Auch eine zu konkrete Interpretation einer mehrdeutigen Aussage kann eine falsche Annahme sein.
+
+Der feste JSON-Vertrag begrenzt dieses Risiko nur auf der Formebene. Er stellt sicher, dass erwartete Felder vorhanden sind und Textlisten enthalten. Er kann nicht prüfen, ob ein Akzeptanzkriterium aus dem Ticket ableitbar ist, ob ein technischer Hinweis wirklich zum Repository passt oder ob der Lösungsvorschlag eine fachliche Entscheidung vorwegnimmt. Strukturelle Validität darf daher nicht mit inhaltlicher Wahrheit verwechselt werden.
+
+Besonders kritisch ist die aktuelle Schwelle für Rückfragen. Erst ab zwei substanziellen offenen Fragen erzeugt der Processor zwingend einen Klärungskommentar. Bei einer offenen Frage wird bereits ein vollständiger Vorschlag erstellt und die Unsicherheit im technischen Kontext sichtbar gehalten. Diese Heuristik verbessert den Arbeitsfluss für kleinere Restfragen, kann aber bei einer einzigen entscheidenden Unklarheit zu früh einen scheinbar reifen Vorschlag erzeugen. Die Anzahl offener Fragen ist kein verlässliches Maß für ihre Bedeutung. Produktiv müsste deshalb zusätzlich nach Kritikalität unterschieden werden, etwa zwischen einer optionalen Randfallfrage und einer ungeklärten Kernentscheidung.
+
+Auch der Lösungsvorschlag birgt ein Framing-Risiko. Sobald ein technisch plausibler Ansatz im Ticket steht, kann er die weitere Diskussion verengen, obwohl mehrere Lösungen möglich wären. Ein Assistant sollte deshalb zwischen Anforderung und Implementierungsidee klar unterscheiden und technische Vorschläge als vorläufig kennzeichnen. Die aktuellen Promptregeln verlangen, nur belegte technische Details zu verwenden und Annahmen sichtbar zu markieren. Ohne empirische Auswertung realer Antworten ist jedoch nicht belegt, wie zuverlässig dies gelingt.
+
+\subsection{Begrenzter und potenziell veralteter Kontext}
+
+Die Qualität eines Vorschlags ist durch den verfügbaren Kontext begrenzt. Dev-Assist berücksichtigt Issue-Daten, vorhandene Notes, bis zu sechs jüngste Kommentare im unmittelbaren Prompt sowie optional eine gecachte Repository-Zusammenfassung. Der Repository-Kontext ist absichtlich gekürzt: Dateibaum und Schlüsseldateien werden begrenzt, damit große Projekte den Prompt nicht überladen. Diese Auswahl ist für einen Prototyp praktikabel, kann aber relevante Informationen ausschließen.
+
+Mehrere Verluststellen sind möglich. Frühere Kommentare können eine weiterhin gültige Entscheidung enthalten, obwohl sie nicht zu den jüngsten sechs Einträgen gehören. Schlüsseldateien können außerhalb der vordefinierten Auswahl liegen. Eine gecachte Zusammenfassung kann nach Repository-Änderungen veraltet sein. Screenshots und Bildanhänge werden nicht inhaltlich analysiert. Externe Links, Architekturentscheidungen oder organisationsinterne Regeln können fehlen. Das Modell kann daher nur den bereitgestellten Ausschnitt interpretieren und sollte nie so formulieren, als kenne es das gesamte System.
+
+Zusätzlich reduziert das aktuelle kompakte Antwortschema die in Kapitel 3 entworfene umfangreichere Zielstruktur. Die Reduktion verbessert Beherrschbarkeit, Validierung und Lesbarkeit, bildet aber nicht jede Ticketart gleich gut ab. Ein Bug Report benötigt möglicherweise explizite Reproduktionsschritte und beobachtetes Verhalten, während eine neue Funktion Rollen, Nutzen, Abgrenzung und nicht-funktionale Anforderungen stärker betont. Eine einheitliche Kompaktstruktur ist ein brauchbarer gemeinsamer Nenner, aber kein vollständiges domänenspezifisches Modell.
+
+\subsection{Fehlender semantischer und externer Nachweis}
+
+Die Evaluation trennt bewusst deterministische Technik von nichtdeterministischer Modellqualität. Das erhöht die Wiederholbarkeit der Tests, lässt aber die zentrale Wirkungsfrage offen. Es gibt kein kuratiertes Ticketkorpus, keine wiederholten Läufe mit mehreren Modellen, keine Blindbewertung und keine Untersuchung mit Entwicklungsteams. Auch ein realer positiver GitLab-Ende-zu-Ende-Lauf fehlt.
+
+Diese Grenzen betreffen Konstrukt-, interne und externe Validität. Die Zahl bestandener Tests misst nicht direkt Ticketqualität; Testdoubles können dieselben Annahmen wie die Implementierung enthalten; Ergebnisse aus einem lokalen TypeScript-Projekt lassen sich nicht ohne Weiteres auf andere Organisationen, Sprachen oder Domänen übertragen. Easterbrook et al. empfehlen, solche Schwächen des Untersuchungsdesigns explizit zu machen und durch ergänzende Methoden sowie Replikationen zu adressieren (vgl. Easterbrook et al., 2008, S. 302 f. und S. 305).
+
+Folglich bleibt offen, wie stabil die Vorschläge bei gleichen Eingaben sind, ob unterschiedliche Modelle vergleichbare Lücken erkennen und wie oft Entwicklungsteams die Ergebnisse unverändert akzeptieren würden. Diese Unsicherheit ist keine bloße Dokumentationslücke, sondern begrenzt die Reichweite aller Nutzenargumente.
+
+\section{Risiken und verantwortbarer Einsatz}
+
+\subsection{Prompt Injection und begrenzte Autonomie}
+
+Tickettexte und Repository-Inhalte sind für das Modell zugleich Arbeitsdaten und potenzielle Angriffseingaben. Ein Kommentar oder eine Datei kann Text enthalten, der versucht, die Analyseanweisungen zu überschreiben. Liu et al. zeigen anhand untersuchter LLM-integrierter Anwendungen eine hohe grundsätzliche Anfälligkeit gegenüber Prompt-Injection-Angriffen (vgl. Liu et al., 2023, S. 1). OWASP unterscheidet direkte Angriffe über Nutzereingaben und indirekte Angriffe über externe Inhalte wie Dateien oder Webseiten (vgl. OWASP, 2025a, Abschnitt "LLM01:2025 Prompt Injection").
+
+Dev-Assist reduziert die mögliche Wirkung durch mehrere Grenzen: Der Agent besitzt keine direkte GitLab-Schreibberechtigung, die Anwendung bestimmt die aufrufbaren Schritte, die Ausgabe muss einem festen Schema entsprechen und produktive Änderungen benötigen ein separates Publish-Kommando. Diese Maßnahmen verhindern nicht, dass ein Angriff die inhaltliche Analyse beeinflusst. Sie begrenzen aber, welche unmittelbaren Systemhandlungen aus einer manipulierten Modellantwort folgen können.
+
+Für einen verantwortbaren Einsatz müssten \emph{untrusted content} und Systemanweisungen technisch und semantisch klar getrennt bleiben. Darüber hinaus wären ein minimierter Werkzeugumfang, restriktive GitLab-Berechtigungen, eine nachvollziehbare Protokollierung, regelmäßige Angriffstests und eine sichere Darstellung verdächtiger Inhalte erforderlich. Ein Schema ist dabei nur eine von mehreren Schutzschichten.
+
+\subsection{Datenschutz und Vertraulichkeit}
+
+Der Analysekontext kann personenbezogene, vertrauliche oder sicherheitsrelevante Informationen enthalten: Namen und Kontaktdaten in Kommentaren, Kundendaten in Logs, interne URLs, Stack Traces, Sicherheitslücken, Zugangsdaten oder proprietären Quellcode. Durch die Repository-Zusammenfassung kann sich der übermittelte Umfang zusätzlich vergrößern. NIST weist darauf hin, dass generative KI Datenschutzrisiken unter anderem durch Verarbeitung persönlicher Daten sowie Offenlegung oder Ableitung sensibler Informationen erzeugt (vgl. National Institute of Standards and Technology, 2024, S. 7).
+
+Für Dev-Assist folgt daraus eine datenminimierende Gestaltung. In den Modellkontext sollten nur Informationen gelangen, die für die Ticketanalyse erforderlich sind. Secrets und sensible Logbestandteile müssten vor der Übermittlung erkannt oder maskiert werden. Modellanbieter, Speicherorte, Aufbewahrungsfristen und Trainingsnutzung wären organisatorisch zu klären. Ebenso braucht es Regeln dafür, welche Projekte und Ticketklassen verarbeitet werden dürfen. Der Prototyp besitzt hierfür noch kein eigenständiges Klassifikations-, Redaktions- oder Löschkonzept.
+
+Lokale Kontextdateien schaffen eine zweite Schutzfläche. \path{context.md}, \path{context.json} und Repository-Zusammenfassungen können sensible Inhalte dauerhaft auf dem Dateisystem ablegen. Zugriffsrechte, Lebensdauer, Verschlüsselung, Bereinigung und Backup-Verhalten sind deshalb ebenso relevant wie die externe Modellübertragung. Konsolenlogging muss zudem verhindern, dass Tokens, vollständige Payloads oder vertrauliche Inhalte unbeabsichtigt in zentralen Logs erscheinen. Diese Anforderungen sind für einen produktiven Betrieb offen.
+
+\subsection{Technische und organisatorische Betriebsrisiken}
+
+Kapitel 6 und 7 haben mehrere konkrete Betriebsrisiken gezeigt. Die Signaturprüfung bildet den aktuellen GitLab-Signing-Token-Vertrag inzwischen dokumentationsnah ab und ist standardmäßig verpflichtend; ein realer Vertragstest gegen eine produktive GitLab-Version fehlt jedoch. Die In-Memory-Deduplication ist bei Neustarts und mehreren Instanzen nicht ausreichend. Asynchrone Verarbeitung ohne persistente Queue erschwert Wiederaufnahme, Laststeuerung und eindeutige Fehlerzustände. Manuelle HTTP-Aufrufe sind durch einen Bearer-Token geschützt, für das Publish-Kommando in GitLab fehlt aber weiterhin ein Rollenmodell.
+
+Auch die Kommentarbereinigung ist organisatorisch sensibel. Der Publisher versucht, Dev-Assist-bezogene Kommentare zu entfernen, während normale Nutzer- und Systemkommentare erhalten bleiben. Damit wird der endgültige Ticketstand übersichtlicher, zugleich kann Diskussionskontext verloren gehen, wenn Filterregeln zu breit greifen. Für revisionsrelevante Umgebungen müsste geklärt werden, ob Kommentare überhaupt gelöscht, nur markiert oder in einem Audit-Artefakt archiviert werden sollen.
+
+Ein produktiver Einsatz erfordert daher mehr als einen technisch erreichbaren Dienst. Zuständigkeiten für Betrieb, Freigabe und Fehlersituationen müssen geklärt sein. Monitoring sollte nicht nur Verfügbarkeit, sondern auch Analysefehler, abgelehnte Schemaantworten, lange Laufzeiten, wiederholte Rückfragen und Publish-Fehler sichtbar machen. Ohne diese Prozessverantwortung kann eine grundsätzlich hilfreiche Automatisierung neue Unsicherheit in den Ticketworkflow einführen.
+
+\section{Wartbarkeit und Erweiterbarkeit}
+
+Die Architektur besitzt für einen Proof of Concept eine nachvollziehbare Aufteilung. Routing, GitLab-Zugriff, Authentifizierung, KI-Service, Promptregeln, Laufzeitvalidierung, Formatierung, Kontextpersistenz und Prozesssteuerung liegen in getrennten Modulen. Diese Trennung folgt dem Architekturgedanken, zentrale Elemente und ihre Beziehungen so zu strukturieren, dass Systemeigenschaften wie Änderbarkeit und Testbarkeit unterstützt werden (vgl. Bass et al., 2021, Kap. 1). Der Mock-Provider und simulierte Clients zeigen praktisch, dass viele Komponenten ohne externe Systeme geprüft werden können.
+
+Die Modularität darf dennoch nicht überschätzt werden. Prompt, TypeScript-Typ, Laufzeitvalidator, Formatter, Kontextdatei und Publisher bilden gemeinsam einen Datenvertrag. Ändert sich ein Feld oder eine Abschnittsstruktur, müssen mehrere Stellen konsistent angepasst werden. Die Abweichung zwischen der umfangreichen Zielstruktur aus Kapitel 3, älteren Beschreibungen in Kapitel 5 und dem aktuellen Kompaktschema zeigt dieses Risiko bereits. Langfristig wäre eine einzige formal definierte Schemaquelle sinnvoll, aus der Typen, Validierung und gegebenenfalls Dokumentation abgeleitet werden.
+
+Auch externe Schnittstellen erzeugen Wartungsbedarf. GitLab-Webhook-Verträge, API-Felder, \texttt{glab}-Verhalten, OpenCode-CLI-Ausgaben und Modellkonfigurationen können sich ändern. Die im Ausgangsstand festgestellte und anschließend behobene Signaturabweichung verdeutlicht, dass erfolgreiche interne Tests eine geänderte externe Spezifikation nicht automatisch erkennen. Vertragstests gegen aktuelle Beispieldaten und eine explizite Versionsstrategie sind daher wichtiger als allein höhere Testzahlen.
+
+Erweiterbarkeit ist an mehreren Stellen vorgesehen. Weitere Analyseprovider können hinter der AI-Schnittstelle eingebunden werden; zusätzliche GitLab-Ereignisse können im Parser ergänzt werden; Bildverarbeitung kann als eigener, abgesicherter Kontextschritt entstehen; persistente Queues oder Speicher können In-Memory-Zustände ersetzen; und das Kompaktschema kann für unterschiedliche Ticketarten profiliert werden. Jede Erweiterung vergrößert jedoch auch Kontextumfang, Berechtigungen und Angriffsfläche. Erweiterbarkeit sollte deshalb nicht nur als technische Offenheit, sondern als kontrollierte Veränderung des Sicherheits- und Validierungsmodells verstanden werden.
+
+Wartbarkeit umfasst schließlich die Verständlichkeit des Betriebs. Zentral gepflegte Konfiguration, strukturierte Logs und dokumentierte manuelle Befehle sind gute Ausgangspunkte. Für mehrere Teams wären zusätzlich Migrationen für Kontextformate, observierbare Jobzustände, dokumentierte Fehlercodes und eine klare Verantwortlichkeit für Prompt- und Schemaänderungen notwendig. Insbesondere Promptänderungen sollten wie Codeänderungen versioniert, getestet und anhand eines festen Ticketkorpus bewertet werden.
+
+\section{Gesamtbewertung}
+
+Dev-Assist ist in seinem aktuellen Stand als Assistenzsystem sinnvoller einzuordnen als als Automatisierung der Anforderungsanalyse. Seine Stärke liegt in der Verbindung dreier Eigenschaften: Es arbeitet im vorhandenen GitLab-Kontext, es erzeugt eine wiederholbare Ticketstruktur, und es trennt Analyse von produktiver Übernahme. Damit adressiert der Prototyp reale Probleme unvollständiger und verteilter Ticketinformationen, ohne dem Modell uneingeschränkte Handlungsfähigkeit zu geben.
+
+Der erwartbare Nutzen ist am größten bei Tickets, deren fachliches Ziel grundsätzlich bekannt ist, deren Informationen aber unstrukturiert oder über Kommentare verteilt vorliegen. Hier kann ein erster Entwurf Konsolidierungsarbeit reduzieren und offene Punkte sichtbar machen. Weniger geeignet ist der aktuelle Ansatz für Aufgaben, bei denen Ziele politisch umstritten, Domänenregeln kaum dokumentiert, Sicherheitsfolgen hoch oder entscheidende Informationen nur in nicht ausgewerteten Anhängen enthalten sind. In solchen Fällen kann die sprachliche Sicherheit eines Vorschlags die tatsächliche Unsicherheit verdecken.
+
+Die zentrale Gestaltungsentscheidung, menschliche Freigabe beizubehalten, ist daher überzeugend. Sie muss produktiv allerdings durch prüfbare Änderungen, Rollen, Datenregeln und Monitoring ergänzt werden. Ebenso muss die technische Validierung um semantische Evaluation erweitert werden. Erst wenn reale Tickets wiederholt bewertet und mit manueller Pflege verglichen wurden, lässt sich entscheiden, ob Dev-Assist nicht nur funktioniert, sondern Entwicklungsteams messbar unterstützt.
+
+\section{Zwischenfazit}
+
+Die Diskussion zeigt ein ausgewogenes Ergebnis. Dev-Assist besitzt plausibles Potenzial, Ticketinformationen früh zu strukturieren, verteilten Kontext zusammenzuführen, wiederkehrende Aufbereitungsarbeit zu unterstützen und Vorschläge kontrolliert in GitLab bereitzustellen. Die Literatur zu Bug Reports und User Stories bestätigt, dass fehlende, unstrukturierte oder schwer nutzbare Informationen ein reales Problem darstellen. Der Prototyp bietet dafür einen nachvollziehbaren technischen Lösungsweg.
+
+Gleichzeitig bleiben die Grenzen substanziell. Schema- und Formvalidierung sichern keine fachliche Wahrheit. Halluzinationen, falsche Annahmen, Prompt Injection, begrenzter oder veralteter Kontext und sensible Daten können die Ergebnisqualität und Sicherheit beeinträchtigen. Die aktuelle Evaluation belegt weder Zeitersparnis noch bessere Ticketqualität im realen Einsatz. Auch reale Vertragstests, verteilte Verarbeitung, Rollen, Monitoring und Datenlebenszyklen sind noch nicht produktionsreif.
+
+Die angemessene Schlussfolgerung ist deshalb kein Ersatz manueller Ticketpflege, sondern ein kontrolliertes Kooperationsmodell: Dev-Assist erzeugt Struktur, Hinweise und Vorschläge; Menschen liefern Domänenwissen, bewerten Unsicherheit und tragen die Verantwortung für die Freigabe. Kapitel 9 fasst auf dieser Grundlage die Arbeit zusammen, beantwortet die Leitfragen und leitet priorisierte Weiterentwicklungen ab.
+
+\endinput
+\clearpage
+\section*{Quellen zu Kapitel 8}
+
+Bass, Len; Clements, Paul; Kazman, Rick 2021. \emph{Software Architecture in Practice}. 4th ed. Addison-Wesley. \url{https://www.sei.cmu.edu/library/software-architecture-in-practice-fourth-edition/}.
+
+Bettenburg, Nicolas; Just, Sascha; Schröter, Adrian; Weiss, Cathrin; Premraj, Rahul; Zimmermann, Thomas 2008. „What Makes a Good Bug Report?“, in Proceedings of the 16th ACM SIGSOFT International Symposium on Foundations of Software Engineering, S. 308-318. New York: ACM. \url{https://doi.org/10.1145/1453101.1453146}.
+
+Breu, Silvia; Premraj, Rahul; Sillito, Jonathan; Zimmermann, Thomas 2010. „Information Needs in Bug Reports. Improving Cooperation Between Developers and Users“, in Proceedings of the 2010 ACM Conference on Computer Supported Cooperative Work, S. 301-310. New York: ACM. \url{https://doi.org/10.1145/1718918.1718973}.
+
+Chaparro, Oscar; Lu, Jing; Zampetti, Fiorella; Moreno, Laura; Di Penta, Massimiliano; Marcus, Andrian; Bavota, Gabriele; Ng, Vincent 2017. „Detecting Missing Information in Bug Descriptions“, in Proceedings of the 2017 11th Joint Meeting on Foundations of Software Engineering, S. 396-407. New York: ACM. \url{https://doi.org/10.1145/3106237.3106285}.
+
+Easterbrook, Steve; Singer, Janice; Storey, Margaret-Anne; Damian, Daniela 2008. „Selecting Empirical Methods for Software Engineering Research“, in Shull, Forrest; Singer, Janice; Sjøberg, Dag I. K. (Hrsg.): \emph{Guide to Advanced Empirical Software Engineering}, S. 285-311. London: Springer. \url{https://doi.org/10.1007/978-1-84800-044-5_11}.
+
+Huang, Lei et al. 2023. „A Survey on Hallucination in Large Language Models. Principles, Taxonomy, Challenges, and Open Questions“. \url{https://arxiv.org/abs/2311.05232}.
+
+Liu, Yi et al. 2023. „Prompt Injection attack against LLM-integrated Applications“. \url{https://arxiv.org/abs/2306.05499}.
+
+Lucassen, Garm; Dalpiaz, Fabiano; van der Werf, Jan Martijn E. M.; Brinkkemper, Sjaak 2016. „Improving agile requirements. The Quality User Story framework and tool“, in \emph{Requirements Engineering} 21, 3, S. 383-403. \url{https://doi.org/10.1007/s00766-016-0250-x}.
+
+National Institute of Standards and Technology 2024. \emph{Artificial Intelligence Risk Management Framework. Generative Artificial Intelligence Profile}. NIST AI 600-1. \url{https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf}.
+
+OWASP 2025a. LLM01:2025 Prompt Injection. OWASP Top 10 for LLM Applications 2025. \url{https://genai.owasp.org/llmrisk/llm01-prompt-injection/} (Zugriff vom 25.06.2026).
+
+OWASP 2025b. LLM06:2025 Excessive Agency. OWASP Top 10 for LLM Applications 2025. \url{https://genai.owasp.org/llmrisk/llm062025-excessive-agency/} (Zugriff vom 25.06.2026).
+
+Song, Yang; Chaparro, Oscar 2020. „BEE. A Tool for Structuring and Analyzing Bug Reports“, in Proceedings of the 28th ACM Joint Meeting on European Software Engineering Conference and Symposium on the Foundations of Software Engineering, S. 1551-1555. New York: ACM. \url{https://doi.org/10.1145/3368089.3417928}.
+
+Projektinterne Arbeitsgrundlagen: \path{AGENTS.md}, \path{README.md}, \path{package.json}, \path{opencode.json}, \path{src/config.ts}, \path{src/routes/gitlabWebhooks.ts}, \path{src/routes/issues.ts}, \path{src/services/gitlab/auth.ts}, \path{src/services/gitlab/parser.ts}, \path{src/services/gitlab/mention.ts}, \path{src/services/gitlab/commands.ts}, \path{src/services/gitlab/cleanup.ts}, \path{src/services/gitlab/client.ts}, \path{src/services/ai/instructions.ts}, \path{src/services/ai/service.ts}, \path{src/services/ai/schema.ts}, \path{src/services/ai/formatter.ts}, \path{src/services/ai/clarifications.ts}, \path{src/services/repositorySummary.ts}, \path{src/services/processing/processor.ts}, \path{src/services/processing/publisher.ts}, \path{src/services/context/writer.ts}, \path{src/services/context/reader.ts}, \path{src/utils/logger.ts} sowie die in Kapitel 6 aufgeführten Tests.
