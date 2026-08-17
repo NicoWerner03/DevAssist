@@ -10,6 +10,10 @@
 \usepackage{tabularx}
 \usepackage{enumitem}
 \usepackage{xurl}
+% URLs nur an Trennzeichen umbrechen, nicht mitten in Ziffern- oder Wortblöcken;
+% Code-Pfade (\path) brechen ausschließlich nach Schrägstrichen um
+\renewcommand{\UrlBreaks}{\do\/\do\-\do\.\do\_\do\%\do\?\do\=\do\&\do\+}
+\DeclareUrlCommand\path{\urlstyle{tt}\def\UrlBreaks{\do\/}}
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{tikz}
