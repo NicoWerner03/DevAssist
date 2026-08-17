@@ -1,31 +1,136 @@
-\documentclass[11pt,a4paper,oneside]{scrreprt}
+\documentclass[12pt,a4paper,oneside]{scrreprt}
 
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[provide=*,ngerman]{babel}
+\usepackage{fontspec}
+\usepackage[ngerman]{babel}
 \usepackage[protrusion=true,expansion=false]{microtype}
 \usepackage{geometry}
 \usepackage{array}
 \usepackage{booktabs}
-\usepackage{longtable}
+\usepackage{supertabular}
+\usepackage{tabularx}
 \usepackage{enumitem}
 \usepackage{xurl}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds,calc}
+\usepackage{caption}
+\usepackage{setspace}
+\usepackage{scrlayer-scrpage}
+\usepackage{etoolbox}
 \usepackage[hidelinks]{hyperref}
 
-\geometry{left=3cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+\setmainfont{Arial}
+\setsansfont{Arial}
+
+\definecolor{DreesBlue}{HTML}{2F3B67}
+\definecolor{DHBWRed}{HTML}{E30613}
+\definecolor{DHBWBlue}{HTML}{2F75B5}
+\definecolor{LightBlue}{HTML}{EAF0F8}
+\definecolor{LightRed}{HTML}{FCEBEC}
+\definecolor{LightGray}{HTML}{F3F4F6}
+
+\captionsetup{
+  font=small,
+  labelfont=bf,
+  justification=raggedright,
+  singlelinecheck=false,
+  skip=6pt
+}
+
+\geometry{
+  left=2.5cm,
+  right=2.5cm,
+  top=4.1cm,
+  bottom=2.1cm,
+  headheight=2.11cm,
+  headsep=1cm,
+  footskip=1.1cm,
+  includefoot
+}
+\setlength{\footheight}{20pt}
+
+\newcommand{\headerlogos}{%
+  \includegraphics[width=5.9cm]{assets/drees-sommer.jpg}%
+  \hfill
+  \includegraphics[width=4.6cm]{assets/dhbw.jpg}%
+}
+
+\clearpairofpagestyles
+\ihead*{\makebox[\textwidth][l]{\headerlogos}}
+\ofoot*{\pagemark}
+\pagestyle{scrheadings}
+\renewcommand*{\chapterpagestyle}{scrheadings}
+\makeatletter
+\let\ps@empty\ps@scrheadings
+\makeatother
+
+\newpairofpagestyles{ohnekopf}{
+  \clearpairofpagestyles
+  \ofoot*{\pagemark}
+}
+
+\newpairofpagestyles{titelseite}{
+  \clearpairofpagestyles
+}
+
+\setkomafont{chapter}{\fontsize{16}{19}\selectfont\bfseries}
+\setkomafont{section}{\fontsize{13}{16}\selectfont\bfseries}
+\setkomafont{subsection}{\fontsize{12}{15}\selectfont\bfseries}
+\setkomafont{subsubsection}{\fontsize{12}{15}\selectfont\bfseries}
+\RedeclareSectionCommand[beforeskip=0pt,afterskip=0.7\baselineskip]{chapter}
+\RedeclareSectionCommand[beforeskip=1.3\baselineskip,afterskip=0.45\baselineskip]{section}
+\RedeclareSectionCommand[beforeskip=1.1\baselineskip,afterskip=0.35\baselineskip]{subsection}
+\RedeclareSectionCommand[beforeskip=1.0\baselineskip,afterskip=0.3\baselineskip]{subsubsection}
+\renewcommand{\contentsname}{\textcolor{DHBWBlue}{Inhaltsverzeichnis}}
+\makeatletter
+\renewcommand{\@pnumwidth}{2.5em}
+\makeatother
+
+\onehalfspacing
+\raggedbottom
 \setlist{itemsep=0.2em,topsep=0.4em}
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{0.7em}
+\setlength{\parskip}{0.65\baselineskip}
 \setlength{\emergencystretch}{3em}
+\newenvironment{longtable}[1]{%
+  \par\medskip
+  \noindent
+  \begin{tabular}{#1}%
+}{%
+  \end{tabular}
+  \par\medskip
+}
+\long\def\endfirsthead#1\endhead{}
+\AtBeginEnvironment{longtable}{\small\setstretch{1.15}\setlength{\tabcolsep}{4pt}}
+\newenvironment{thesistableblock}{%
+  \par\medskip
+  \noindent\begin{minipage}[t]{\textwidth}%
+}{%
+  \end{minipage}
+  \par\medskip
+}
+\newcommand{\thesistablecaption}[2]{%
+  \par\smallskip
+  \refstepcounter{table}%
+  \label{#2}%
+  \addcontentsline{lot}{table}{\protect\numberline{\thetable}#1}%
+  \noindent{\small\textbf{\tablename~\thetable:} #1\par}%
+  \vspace{6pt}%
+}
 
-\newcommand{\arbeitstitel}{Konzeption und Implementierung eines KI-gestützten GitLab-Assistenten zur Verbesserung der Qualität von Software-Tickets}
-\newcommand{\studentname}{[VOR- UND NACHNAME ERGÄNZEN]}
-\newcommand{\matrikelnummer}{[MATRIKELNUMMER ERGÄNZEN]}
-\newcommand{\studiengang}{[STUDIENGANG UND KURS ERGÄNZEN]}
-\newcommand{\dualpartner}{[DUALEN PARTNER ERGÄNZEN]}
-\newcommand{\betrieblicherbetreuer}{[BETRIEBLICHE BETREUUNG ERGÄNZEN]}
-\newcommand{\wissenschaftlicherbetreuer}{[WISSENSCHAFTLICHE BETREUUNG ERGÄNZEN]}
-\newcommand{\abgabedatum}{[ABGABEDATUM ERGÄNZEN]}
+\newcommand{\arbeitstitel}{Konzeption und Implementierung eines KI-gestützten GitLab-Assistenten zur Aufbereitung von Software-Tickets}
+\newcommand{\studentname}{Nico Werner}
+\newcommand{\matrikelnummer}{3043145}
+\newcommand{\studiengang}{Informatik}
+\newcommand{\kurs}{INF23E}
+\newcommand{\dualpartner}{Drees \& Sommer, Stuttgart}
+\newcommand{\betrieblicherbetreuer}{Denis Günther}
+% Wissenschaftliche Betreuung und Abgabedatum sind im Repository nicht hinterlegt
+% und dürfen nicht erfunden werden. Vor der Abgabe durch die amtlichen Angaben ersetzen.
+\newcommand{\wissenschaftlicherbetreuer}{--}
+\newcommand{\bearbeitungszeitraum}{12 Wochen}
+\newcommand{\abgabedatum}{--}
 
 \hypersetup{
   pdftitle={\arbeitstitel},
@@ -37,52 +142,111 @@
 
 \begin{document}
 
-\hypersetup{pageanchor=false}
-\pagenumbering{gobble}
+\newgeometry{left=2.5cm,right=2.5cm,top=1.1cm,bottom=1.5cm}
 \begin{titlepage}
-\centering
-{\Large Duale Hochschule Baden-Württemberg\par}
-\vspace{1.5cm}
-{\LARGE\bfseries \arbeitstitel\par}
-\vspace{1.2cm}
-{\large Bachelorarbeit\par}
-\vspace{0.4cm}
-{im Studiengang \studiengang\par}
-\vfill
-\begin{tabular}{@{}p{0.34\textwidth}p{0.58\textwidth}@{}}
-Verfasserin/Verfasser: & \studentname \\
-Matrikelnummer: & \matrikelnummer \\
-Dualer Partner: & \dualpartner \\
-Betriebliche Betreuung: & \betrieblicherbetreuer \\
-Wissenschaftliche Betreuung: & \wissenschaftlicherbetreuer \\
-Abgabedatum: & \abgabedatum \\
-\end{tabular}
-\vfill
-\end{titlepage}
+\thispagestyle{titelseite}
+\noindent\headerlogos
 
-\hypersetup{pageanchor=true}
+\vspace{1.45cm}
+\begin{center}
+{\fontsize{15}{18}\selectfont\color{DHBWRed}\arbeitstitel\par}
+\vspace{1.45cm}
+{\fontsize{13}{16}\selectfont\bfseries\color{DHBWRed}Bachelorarbeit\par}
+\vspace{1.65cm}
+{\fontsize{12}{15}\selectfont des Studienganges \textcolor{DHBWRed}{\studiengang}\par}
+\vspace{0.8cm}
+{\fontsize{12}{15}\selectfont an der Dualen Hochschule Baden-Württemberg \textcolor{DHBWRed}{Stuttgart}\par}
+\vspace{1.65cm}
+{\fontsize{12}{15}\selectfont von\par}
+\vspace{0.7cm}
+{\fontsize{12}{15}\selectfont\color{DHBWRed}\studentname\par}
+\vspace{1.65cm}
+{\fontsize{12}{15}\selectfont\color{DHBWRed}\abgabedatum\par}
+\end{center}
+
+\vfill
+\setstretch{1.35}
+\begin{tabularx}{\textwidth}{@{}p{0.43\textwidth}X@{}}
+Bearbeitungszeitraum & \textcolor{DHBWRed}{\bearbeitungszeitraum} \\
+Matrikelnummer, Kurs & \textcolor{DHBWRed}{\matrikelnummer, \kurs} \\
+Dualer Partner & \textcolor{DHBWRed}{\dualpartner} \\
+Betreuer*in des Dualen Partners & \textcolor{DHBWRed}{\betrieblicherbetreuer} \\
+Wissenschaftliche Betreuung & \textcolor{DHBWRed}{\wissenschaftlicherbetreuer} \\
+\end{tabularx}
+\end{titlepage}
+\restoregeometry
+
 \pagenumbering{Roman}
+\setcounter{page}{1}
+\newgeometry{left=2.5cm,right=2.5cm,top=1.1cm,bottom=2.1cm,footskip=1.1cm,includefoot}
+\pagestyle{ohnekopf}
+
+\chapter*{Ehrenwörtliche Erklärung}
+\addcontentsline{toc}{chapter}{Ehrenwörtliche Erklärung}
+\thispagestyle{ohnekopf}
+Ich versichere hiermit, dass ich die vorliegende Arbeit selbstständig verfasst und keine anderen als die angegebenen Quellen und Hilfsmittel verwendet habe und diese Arbeit bei keiner anderen Prüfung mit gleichem oder vergleichbarem Inhalt vorgelegt habe und diese bislang nicht veröffentlicht wurde. Des Weiteren versichere ich, dass die eingereichte elektronische Fassung mit der gedruckten Ausfertigung übereinstimmt.
+
+\vspace{2.2cm}
+\begin{tabularx}{0.87\textwidth}{@{}p{0.26\textwidth}X@{}}
+\rule{0.26\textwidth}{0.4pt} & \rule{\linewidth}{0.4pt} \\
+Ort, Datum & Unterschrift
+\end{tabularx}
+\clearpage
 
 \chapter*{Kurzfassung}
 \addcontentsline{toc}{chapter}{Kurzfassung}
-Software-Tickets bilden in vielen Entwicklungsteams die zentrale Schnittstelle zwischen fachlichem Bedarf, technischer Umsetzung und Qualitätssicherung. In der Praxis sind relevante Informationen jedoch häufig unvollständig, unstrukturiert oder über Beschreibung und Kommentare verteilt. Diese Arbeit untersucht deshalb, welche Angaben ein GitLab-Ticket für eine nachvollziehbare Umsetzung und Prüfung benötigt und wie ein KI-gestützter Assistent kontrolliert in einen GitLab-Workflow integriert werden kann.
+Software-Tickets bilden in Entwicklungsteams die Schnittstelle zwischen fachlichem Bedarf, Umsetzung und Prüfung. Relevante Angaben sind häufig unvollständig oder über Beschreibung und Kommentare verteilt. Diese Arbeit untersucht, welche Informationen ein GitLab-Ticket für eine nachvollziehbare Umsetzung und Prüfung benötigt und wie ein KI-gestützter Assistent kontrolliert in einen GitLab-Workflow integriert werden kann. Ziel, Kontext, erwartetes Verhalten, Prüfkriterien und sichtbare Unsicherheit bilden den fachlichen Kern.
 
-Hierzu wird Dev-Assist als Proof of Concept konzipiert und in TypeScript mit Express umgesetzt. GitLab-Webhooks aktivieren die Verarbeitung; der Dienst sammelt Issue-, Kommentar- und optionalen Repository-Kontext, übergibt ihn an einen über OpenCode eingebundenen Analyseagenten und validiert die Rückgabe gegen einen festen Datenvertrag. Abhängig von der Informationslage stellt das System Rückfragen oder erzeugt einen strukturierten Vorschlag. Eine produktive Änderung des Issues erfolgt erst nach einem separaten Publish-Kommando. Signaturprüfung, Replay-Schutz, Deduplizierung, Bot-Schleifenschutz, lokale Kontextpersistenz und eine explizite Freigabe begrenzen dabei die Autonomie des Modells.
-
-Die technische Evaluation umfasst den TypeScript-Build, 71 automatisierte Tests in 17 Suiten und eine Coverage-Erhebung. Sämtliche Tests bestehen; für die geladenen Quelldateien werden 84,10\,\% Zeilenabdeckung erreicht. Nachgewiesen sind damit vor allem deterministische Systemeigenschaften wie Parsing, Schema-Validierung, Formatierung und Sicherheitsgrenzen. Nicht nachgewiesen ist die fachliche Qualität realer Modellantworten im produktiven Einsatz. Die Arbeit kommt zu dem Ergebnis, dass generative KI die Anforderungsaufbereitung unterstützen kann, wenn ein deterministischer Anwendungskern, minimale Berechtigungen und menschliche Freigabe die Modellgenerierung begrenzen. Für eine belastbare Wirkungsaussage sind reale Ende-zu-Ende-Tests und eine empirische Bewertung mit einem kuratierten Ticketkorpus erforderlich.
+Dazu wird Dev-Assist als Proof of Concept in TypeScript mit Express umgesetzt. GitLab-Webhooks lösen die Verarbeitung aus. Der Dienst sammelt Issue- und Kommentardaten sowie optionalen Repository-Kontext, übergibt sie an einen OpenCode-Analyseagenten und prüft die Antwort gegen ein festes Ausgabeschema. Je nach Informationslage entstehen Rückfragen oder ein strukturierter Vorschlag. Das Issue wird erst nach einem gesonderten Publish-Kommando geändert. Ausgabeschema, Schutz vor Bot-Schleifen und lokale Persistenz begrenzen die Autonomie des Modells.
 
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
-Software tickets are a central interface between business needs, technical implementation, and quality assurance in many development teams. In practice, relevant information is often incomplete, unstructured, or distributed across an issue description and subsequent comments. This thesis therefore investigates which information a GitLab ticket needs to support comprehensible implementation and verification, and how an AI-assisted service can be integrated into a GitLab workflow under explicit technical control.
+Software tickets are the interface between business needs, implementation, and verification in development teams. Relevant information is often incomplete or spread across the description and later comments. This thesis investigates which information a GitLab ticket needs for comprehensible implementation and checking, and how an AI assistant can be integrated into a GitLab workflow under explicit control. Goal, context, expected behaviour, acceptance criteria, and visible uncertainty form the quality core.
 
-To address these questions, Dev-Assist is designed and implemented as a TypeScript and Express proof of concept. GitLab webhooks activate the workflow; the service collects issue and comment data as well as optional repository context, submits the prepared input to an analysis agent through OpenCode, and validates the response against a fixed data contract. Depending on the available information, the service either asks focused clarification questions or produces a structured ticket proposal. The GitLab issue is modified only after a separate publish command. Signature verification, replay protection, deduplication, bot-loop prevention, local context persistence, and explicit approval limit the model's autonomy.
+Dev-Assist is implemented as a TypeScript and Express proof of concept. GitLab webhooks trigger processing. The service collects issue and comment data plus optional repository context, sends them to an OpenCode analysis agent, and validates the reply against a fixed data contract. Depending on the information available, it asks clarification questions or produces a structured proposal. The issue is changed only after a separate publish command. The data contract, bot-loop protection, and local persistence limit the model's autonomy.
 
-The technical evaluation comprises a successful TypeScript build, 71 automated tests in 17 suites, and a coverage run. All tests pass, and the loaded source files reach 84.10\,\% line coverage. This evidence primarily supports deterministic properties such as parsing, schema validation, formatting, and security boundaries. It does not demonstrate the semantic quality of real model responses in production. The thesis concludes that generative AI can support requirements refinement when model generation is enclosed by deterministic application logic, minimal privileges, and human approval. Reliable claims about practical effectiveness require real end-to-end GitLab tests and an empirical evaluation based on a curated ticket corpus and expert assessments.
-
-\tableofcontents
 \clearpage
+{\addtokomafont{chapter}{\color{DHBWBlue}}\tableofcontents}
+\clearpage
+\addcontentsline{toc}{chapter}{Abbildungsverzeichnis}
+{\addtokomafont{chapter}{\color{DHBWBlue}}\listoffigures}
+\clearpage
+\addcontentsline{toc}{chapter}{Tabellenverzeichnis}
+{\addtokomafont{chapter}{\color{DHBWBlue}}\listoftables}
+\clearpage
+\chapter*{Abkürzungsverzeichnis}
+\addcontentsline{toc}{chapter}{Abkürzungsverzeichnis}
+\small
+\noindent
+\begin{tabularx}{\textwidth}{@{}p{0.22\textwidth}X@{}}
+API & Application Programming Interface \\
+CLI & Command Line Interface \\
+FA & funktionale Anforderung \\
+HMAC & Hash-based Message Authentication Code \\
+HTTP & Hypertext Transfer Protocol \\
+JSON & JavaScript Object Notation \\
+JSONL & JSON Lines \\
+LLM & Large Language Model \\
+NFA & nicht-funktionale Anforderung \\
+NIST & National Institute of Standards and Technology \\
+OCR & Optical Character Recognition \\
+OWASP & Open Worldwide Application Security Project \\
+REST & Representational State Transfer \\
+SRS & Software Requirements Specification \\
+TTL & Time to Live \\
+\end{tabularx}
+\normalsize
+\clearpage
+\restoregeometry
+\pagestyle{scrheadings}
 \pagenumbering{arabic}
+\setcounter{page}{1}
 
+\input{kapitel_1_bis_5_kompakt}
+
+% Archiv der ursprünglichen Langfassung von Kapitel 1 bis 5.
+% Die aktive Fassung steht in kapitel_1_bis_5_kompakt.tex; Kapitel 1 bis 9 umfassen zusammen 70 Inhaltsseiten.
+\iffalse
 \chapter{Einleitung}
 
 In modernen Softwareentwicklungsprozessen werden Anforderungen, Fehlerberichte und ergänzende Hinweise häufig in Ticket- oder Issue-Tracking-Systemen dokumentiert. Diese Artefakte sind nicht nur technische Aufgabenlisten, sondern Koordinationspunkte zwischen meldenden Personen, Produktverantwortlichen und Entwicklerinnen und Entwicklern. Studien zu Bug Reports zeigen, dass Bug-Tracking-Systeme eine zentrale Rolle in der Zusammenarbeit zwischen Nutzenden und Entwicklungsteams übernehmen und dass Rückfragen in Tickets häufig dazu dienen, fehlende Informationen nachzuliefern (vgl. Breu et al., 2010, S. 301 und S. 303). Gleichzeitig unterscheiden sich die Informationen, die meldende Personen bereitstellen, deutlich von den Informationen, die Entwicklerinnen und Entwickler für eine schnelle Bearbeitung benötigen. Besonders Reproduktionsschritte, Stack Traces und Testfälle gelten als hilfreich, sind für meldende Personen aber schwer bereitzustellen (vgl. Bettenburg et al., 2008, S. 308 f.).
@@ -233,7 +397,7 @@ Dev-Assist soll unstrukturierte oder unvollständige GitLab-Issues nicht automat
 
 Die Anforderungen werden aus vier Quellen abgeleitet. Erstens werden die Erkenntnisse aus Kapitel 2 zu Ticketqualität, Informationslücken und Risiken von Large Language Models herangezogen. Zweitens wird der bisherige manuelle GitLab-Prozess betrachtet. Drittens fließt die projektinterne Zielbeschreibung ein, nach der Dev-Assist über \texttt{@dev-assist} aktiviert wird, bei fehlendem Kontext Rückfragen stellt, bei ausreichendem Kontext einen Vorschlag erzeugt und diesen erst nach \texttt{@dev-assist publish} übernimmt. Viertens wird der aktuelle Prototyp berücksichtigt, um die Anforderungen mit den technischen Rahmenbedingungen abzugleichen.
 
-Requirements Engineering umfasst nach der öffentlichen Katalogseite zu ISO/IEC/IEEE 29148 die systematische Behandlung von Anforderungen über den Lebenszyklus hinweg und beschreibt zugehörige Informationsprodukte und Prozesse (vgl. ISO/IEC/IEEE, 2018, o. S.). Für Dev-Assist bedeutet das, dass Anforderungen nicht nur Funktionen beschreiben, sondern auch benötigte Informationen, Verarbeitungsschritte und Systemgrenzen. Da GitLab-Issues in einem agilen Entwicklungskontext entstehen, ist außerdem die kollaborative Dimension relevant: Agile Requirements Engineering ist stark mit Kommunikation, gemeinsamer Klärung und kontinuierlicher Anpassung verbunden (vgl. Inayat et al., 2015, S. 915 ff.). Dev-Assist muss sich daher in bestehende Kommunikation einfügen, statt sie durch einen isolierten Analysevorgang zu ersetzen.
+Requirements Engineering umfasst nach der öffentlichen Katalogseite zu ISO/IEC/\allowbreak IEEE 29148 die systematische Behandlung von Anforderungen über den Lebenszyklus hinweg und beschreibt zugehörige Informationsprodukte und Prozesse (vgl. ISO/IEC/IEEE, 2018, o. S.). Für Dev-Assist bedeutet das, dass Anforderungen nicht nur Funktionen beschreiben, sondern auch benötigte Informationen, Verarbeitungsschritte und Systemgrenzen. Da GitLab-Issues in einem agilen Entwicklungskontext entstehen, ist außerdem die kollaborative Dimension relevant: Agile Requirements Engineering ist stark mit Kommunikation, gemeinsamer Klärung und kontinuierlicher Anpassung verbunden (vgl. Inayat et al., 2015, S. 915 ff.). Dev-Assist muss sich daher in bestehende Kommunikation einfügen, statt sie durch einen isolierten Analysevorgang zu ersetzen.
 
 Die fachlichen Anforderungen orientieren sich an Arbeiten zu User Stories und Bug Reports. Lucassen et al. unterscheiden syntaktische, semantische und pragmatische Qualitätsaspekte von User Stories (vgl. Lucassen et al., 2016, S. 386 f.). Ein Ticketvorschlag darf deshalb nicht nur formal gegliedert sein, sondern muss inhaltlich verständlich, konsistent und für Entwicklerinnen und Entwickler nutzbar bleiben. Chaparro et al. zeigen für Bug Descriptions, dass besonders beobachtetes Verhalten, erwartetes Verhalten und Reproduktionsschritte häufig fehlen (vgl. Chaparro et al., 2017, S. 396 f.). Diese Befunde werden hier nicht als unmittelbarer Nachweis für alle Ticketarten verstanden. Für Dev-Assist wird daraus abgeleitet, dass GitLab-Tickets Ziel, Kontext, erwartetes Ergebnis, Akzeptanzkriterien, offene Fragen und relevante Randbedingungen möglichst explizit enthalten sollten.
 
@@ -312,11 +476,35 @@ Titel & Knappes, suchbares und handlungsorientiertes Issue-Thema \\
 Ziel & Beschreibung des angestrebten Ergebnisses oder Nutzens \\
 Scope & Inhalte, die ausdrücklich Teil des Tickets sind \\
 Out-of-Scope & Inhalte, die nicht Teil des Tickets sind \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.62\textwidth}@{}}
+\toprule
+\textbf{Bestandteil} & \textbf{Zweck} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Bestandteil} & \textbf{Zweck} \\
+\midrule
+\endhead
 User Stories & Rollenbezogene Beschreibung des erwarteten Nutzens, sofern sinnvoll ableitbar \\
 Funktionale Anforderungen & Konkrete Verhaltensanforderungen an das System \\
 Technische Hinweise & Nur explizit genannte technische Randbedingungen, keine erfundenen Implementierungsdetails \\
 Umsetzungsschritte & Grobe, entwicklungsorientierte Arbeitsschritte ohne unnötige Tiefendetails \\
 Definition of Done & Bedingungen, unter denen das Ticket als abgeschlossen gelten kann \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.62\textwidth}@{}}
+\toprule
+\textbf{Bestandteil} & \textbf{Zweck} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Bestandteil} & \textbf{Zweck} \\
+\midrule
+\endhead
 Akzeptanzkriterien & Prüfpunkte für Abnahme und Qualitätssicherung \\
 Offene Fragen & Fehlende Informationen, die nicht sicher abgeleitet werden können \\
 Risiken und Annahmen & Unsicherheiten, Abhängigkeiten und mögliche Fehlinterpretationen \\
@@ -493,6 +681,18 @@ Die Gesamtarchitektur lässt sich in sechs Schichten gliedern:
 HTTP- und Routing-Schicht & Requests, JSON-Parsing, Rohkörper-Erfassung, Logging, Antwort an GitLab & \path{src/app.ts}, \path{src/server.ts}, \path{src/routes/gitlabWebhooks.ts}, \path{src/routes/issues.ts}, \path{src/routes/health.ts} \\
 Webhook-Prüfung & Signatur-/Tokenprüfung, Payload-Parsing, Mention- und Kommandoerkennung, Deduplication & \path{src/services/gitlab/auth.ts}, \path{src/services/gitlab/parser.ts}, \path{src/services/gitlab/mention.ts}, \path{src/services/gitlab/commands.ts} \\
 GitLab-Anbindung & Lesen von Issues und Kommentaren, Schreiben und Löschen von Notizen, Aktualisieren von Issues & \path{src/services/gitlab/client.ts}, \path{src/services/gitlab/cleanup.ts} \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}@{}}
+\toprule
+\textbf{Schicht} & \textbf{Hauptaufgabe} & \textbf{Zentrale Projektmodule} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Schicht} & \textbf{Hauptaufgabe} & \textbf{Zentrale Projektmodule} \\
+\midrule
+\endhead
 Analyse- und Agentenschicht & Prompt-Aufbau, Opencode- oder Mock-Analyse, JSON-Parsing, Schema-Prüfung, Rückfragen & \path{src/services/ai/service.ts}, \path{src/services/ai/instructions.ts}, \path{src/services/ai/schema.ts}, \path{src/services/ai/clarifications.ts}, \path{opencode.json} \\
 Ausgabe- und Persistenzschicht & GitLab-Markdown, Kontextdateien & \path{src/services/ai/formatter.ts}, \path{src/services/context/writer.ts}, \path{src/services/context/reader.ts} \\
 Prozesssteuerung & Orchestrierung von Analyse und Publish & \path{src/services/processing/processor.ts}, \path{src/services/processing/publisher.ts} \\
@@ -592,7 +792,7 @@ Webhook-Endpunkte sind öffentliche HTTP-Schnittstellen und müssen vor gefälsc
 
 Die Signaturpflicht ist standardmäßig aktiviert. Für lokale Entwicklung unterstützt der Prototyp einen ausdrücklich zu aktivierenden Modus, in dem fehlende Signing Secrets als Warnung geloggt und toleriert werden. Zusätzlich verhindert das Mention-Gate, dass Dev-Assist auf beliebige Projektkommentare reagiert; selbst verfasste oder eindeutig generierte Dev-Assist-Kommentare werden ignoriert, um Bot-Schleifen zu vermeiden. Die manuellen HTTP-Endpunkte besitzen einen davon getrennten Bearer-Token und bleiben ohne dessen Konfiguration deaktiviert.
 
-Die KI-Autonomie bleibt begrenzt. Das Modell erhält keine direkte GitLab-Schreibberechtigung, sondern liefert nur strukturierte Antworten. Die Anwendung prüft, rendert und entscheidet über weitere Systemhandlungen; produktive Änderungen erfolgen erst nach \texttt{@dev-assist publish}. Damit adressiert die Architektur sowohl Halluzinationsrisiken als auch OWASPs Risiko übermäßiger Handlungsfähigkeit (vgl. National Institute of Standards and Technology, 2024, S. 4 und S. 6; OWASP, 2025b, Abschnitt "LLM06:2025 Excessive Agency"). Secrets wie GitLab-Token, Webhook-Secrets und Modellkonfigurationen liegen nicht im Code, sondern in \texttt{.env}; Logging darf keine Secrets ausgeben.
+Die KI-Autonomie bleibt begrenzt. Das Modell erhält keine direkte Schreibberechtigung für GitLab, sondern liefert nur strukturierte Antworten. Die Anwendung prüft, rendert und entscheidet über weitere Systemhandlungen; produktive Änderungen erfolgen erst nach \texttt{@dev-assist publish}. Damit adressiert die Architektur sowohl Halluzinationsrisiken als auch OWASPs Risiko übermäßiger Handlungsfähigkeit (vgl. National Institute of Standards and Technology, 2024, S. 4 und S. 6; OWASP, 2025b, Abschnitt "LLM06:2025 Excessive Agency"). Secrets wie GitLab-Token, Webhook-Secrets und Modellkonfigurationen liegen nicht im Code, sondern in \texttt{.env}; Logging darf keine Secrets ausgeben.
 
 \section{Bild-, Screenshot- und Repository-Kontext}
 
@@ -650,6 +850,18 @@ Die Projektstruktur ist klein und modular gehalten:
 \path{src/routes/} & Health-Check, GitLab-Webhooks und manuelle Issue-Aktionen \\
 \path{src/services/gitlab/} & Webhook-Parsing, Mention-Erkennung, Authentifizierung, GitLab-Client und Kommentarbereinigung \\
 \path{src/services/ai/} & Promptaufbau, Mock- und OpenCode-Analyse, Antwortschema, Formatierung und Klärungslogik \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.62\textwidth}@{}}
+\toprule
+\textbf{Bereich} & \textbf{Aufgabe} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Bereich} & \textbf{Aufgabe} \\
+\midrule
+\endhead
 \path{src/services/context/} & Schreiben und Lesen von \path{context.md} und \path{context.json} \\
 \path{src/services/processing/} & Orchestrierung von Analyse und Publish \\
 \path{src/services/repositorySummary.ts} & Sammlung und Zusammenfassung von Repository-Kontext \\
@@ -730,7 +942,7 @@ Anschließend wird der Repository-Summary-Provider aufgerufen. Ist eine Zusammen
 
 Der Aufruf \texttt{ai.analyzeTicket(ctx)} bildet die Schnittstelle zur KI-Schicht. Schlägt die Analyse vollständig fehl, versucht der Processor, einen Fehlerkommentar in GitLab zu posten, und wirft den Fehler weiter. So entsteht keine Kontextdatei aus einer fehlgeschlagenen oder unparsebaren KI-Antwort.
 
-Nach erfolgreicher Analyse entscheidet der Processor, welcher Kommentar gepostet wird. Bei mindestens zwei substantiellen offenen Fragen wird \texttt{renderClarificationComment} verwendet; andernfalls erzeugt \texttt{renderRequirementAnalysis} einen vollständigen strukturierten Vorschlag. Diese Heuristik verhindert, dass einzelne offene Punkte den gesamten Vorschlag blockieren, während mehrere relevante Fragen als Hinweis auf eine noch instabile Ticketgrundlage behandelt werden.
+Nach erfolgreicher Analyse entscheidet der Processor, welcher Kommentar gepostet wird. Bei mindestens zwei substantiellen offenen Fragen wird \path{renderClarificationComment} verwendet; andernfalls erzeugt \path{renderRequirementAnalysis} einen vollständigen strukturierten Vorschlag. Diese Heuristik verhindert, dass einzelne offene Punkte den gesamten Vorschlag blockieren, während mehrere relevante Fragen als Hinweis auf eine noch instabile Ticketgrundlage behandelt werden.
 
 Unabhängig vom Erfolg des GitLab-Kommentars versucht die Anwendung, den strukturierten Kontext lokal zu persistieren. \texttt{writeContextFile} schreibt \path{.dev-assist/issues/<projectId>/<issueIid>/context.md} und speichert, sofern vorhanden, den vorgeschlagenen Titel in \path{context.json}. \texttt{processFromWebhook} verbindet Parser und Prozesslogik, liest Projekt-ID, Issue-IID und auslösenden Text aus dem \texttt{ParsedWebhook}, prüft die Mention defensiv erneut und ruft \texttt{processIssue} auf.
 
@@ -754,7 +966,7 @@ Die Struktur der KI-Antwort ist in \path{src/services/ai/schema.ts} definiert. D
 
 Diese Struktur zwingt den Agenten, zwischen Ticketbeschreibung, Akzeptanzkriterien, technischem Kontext, Lösungsvorschlag und offenen Fragen zu unterscheiden. Dadurch wird die Antwort maschinenlesbar und nachgelagert renderbar. Freier LLM-Fließtext wäre für diesen Workflow ungeeignet, weil die Anwendung dann nicht zuverlässig Titel, Beschreibung, Rückfrage oder Prüfkriterium unterscheiden könnte.
 
-Die Laufzeitvalidierung erfolgt über \texttt{parseAnalysisJson} und \texttt{validateRequirementAnalysis}. Zunächst werden mögliche Markdown-Codezäune entfernt, dann wird JSON geparst. Anschließend prüft \texttt{validateRequirementAnalysis}, ob exakt die sechs Pflichtfelder vorhanden sind, ob der Titel ein String ist und ob sämtliche übrigen Felder ausschließlich String-Arrays enthalten. Unbekannte Eigenschaften, falsche Feldtypen und nicht-textuelle Array-Elemente werden abgelehnt. Die Validierung ist ohne zusätzliche Bibliothek umgesetzt, bildet den tatsächlich verwendeten Vertrag jedoch vollständig ab.
+Die Laufzeitvalidierung erfolgt über \path{parseAnalysisJson} und \path{validateRequirementAnalysis}. Zunächst werden mögliche Markdown-Codezäune entfernt, dann wird JSON geparst. Anschließend prüft \path{validateRequirementAnalysis}, ob exakt die sechs Pflichtfelder vorhanden sind, ob der Titel ein String ist und ob sämtliche übrigen Felder ausschließlich String-Arrays enthalten. Unbekannte Eigenschaften, falsche Feldtypen und nicht-textuelle Array-Elemente werden abgelehnt. Die Validierung ist ohne zusätzliche Bibliothek umgesetzt, bildet den tatsächlich verwendeten Vertrag jedoch vollständig ab.
 
 Die Auswertung von OpenCode-Exporten berücksichtigt zusätzlich, dass ein Export den vollständigen Gesprächsverlauf und damit auch das JSON-Beispiel aus dem Prompt enthalten kann. Kandidaten werden deshalb vom Ende der Ausgabe her geprüft; der bekannte Beispieltitel wird verworfen. Ein automatisierter Test stellt sicher, dass die finale Agentenantwort und nicht das Schema-Beispiel veröffentlicht wird.
 
@@ -772,7 +984,7 @@ Nach der Analyse entfernt \texttt{removeAnsweredOpenQuestions} offene Fragen, di
 
 Dev-Assist kann optional eine Repository-Zusammenfassung in den Prompt aufnehmen. \texttt{src/services/repositorySummary.ts} sammelt über den GitLab-Client Projektmetadaten, Programmiersprachen, den Repository-Baum und ausgewählte Schlüsseldateien wie \texttt{package.json}, \texttt{tsconfig.json}, \texttt{README.md}, \texttt{AGENTS.md} oder Build-Dateien. Der Kontext ist begrenzt: maximal 300 Baumeinträge, 8 Schlüsseldateien und 8000 Zeichen pro Datei. So wird verhindert, dass große Repositories den Prompt überladen.
 
-Die Daten werden dem \texttt{repo-summary}-Agenten übergeben. Der Prompt fordert eine knappe Markdown-Zusammenfassung zu Technology Stack, Project Structure, Key Commands, Architecture, Important Files und Conventions. Die resultierende Zusammenfassung wird im Speicher gecacht und unter \texttt{.dev-assist/repo-summary-\textless{}projectId\textgreater{}.md} persistiert.
+Die Daten werden dem \texttt{repo-summary}-Agenten übergeben. Der Prompt fordert eine knappe Markdown-Zusammenfassung zu Technology Stack, Project Structure, Key Commands, Architecture, Important Files und Conventions. Die resultierende Zusammenfassung wird im Speicher gecacht und unter \path{.dev-assist/repo-summary-<projectId>.md} persistiert.
 
 Diese Zusammenfassung soll keine fachlichen Anforderungen erfinden, sondern technische Hinweise plausibler machen. Wenn ein Ticket eine Änderung an einem API-Dienst beschreibt und die Repository-Zusammenfassung Express, TypeScript und bestimmte Befehle zeigt, kann der Agent technische Umsetzungshinweise vorsichtiger einordnen. Fehlt die Zusammenfassung, läuft die Analyse ohne Zusatzkontext weiter.
 
@@ -784,7 +996,7 @@ Die Trennung zwischen Analyse und Publish begrenzt die Systemautonomie. OWASP be
 
 Die Persistenz liegt in \path{src/services/context/writer.ts} und \path{src/services/context/reader.ts}. \texttt{writeContextFile} erzeugt \path{.dev-assist/issues/<projectId>/<issueIid>/}, schreibt dort \path{context.md} und optional \path{context.json}. \path{context.md} enthält den gerenderten Vorschlag, \path{context.json} derzeit vor allem den vorgeschlagenen Titel. Projekt-ID und Issue-IID werden vor der Pfadbildung auf positive Ganzzahlen begrenzt; Traversal-Sequenzen werden abgewiesen. Beim Publish liest \texttt{readContextFile} den Markdown-Inhalt und \texttt{readContextMetadata} die Metadaten. Fehlt die Metadatendatei, wird mit der Beschreibung allein weitergearbeitet.
 
-Der Publish-Schritt befindet sich in \texttt{src/services/processing/publisher.ts}. Zunächst wird der gespeicherte Kontext gelesen. Danach entfernt \texttt{renderPublishedDescription} Abschnitte, die nicht in die finale Issue-Beschreibung gehören, etwa den separaten Titelabschnitt. Der Titel wird bevorzugt aus \texttt{context.json} übernommen, andernfalls aus dem Markdown extrahiert. So landet er im GitLab-Issue-Titel und nicht redundant im Beschreibungstext.
+Der Publish-Schritt befindet sich in \path{src/services/processing/publisher.ts}. Zunächst wird der gespeicherte Kontext gelesen. Danach entfernt \path{renderPublishedDescription} Abschnitte, die nicht in die finale Issue-Beschreibung gehören, etwa den separaten Titelabschnitt. Der Titel wird bevorzugt aus \texttt{context.json} übernommen, andernfalls aus dem Markdown extrahiert. So landet er im GitLab-Issue-Titel und nicht redundant im Beschreibungstext.
 
 Vor der Mutation lädt der Publisher den Kommentarverlauf und filtert die Dev-Assist-bezogenen Notes. Die eigentliche Reihenfolge schützt vor Datenverlust: Zuerst aktualisiert \texttt{updateIssue} Titel und Beschreibung. Erst nach diesem erfolgreichen, dauerhaften Schritt werden die zuvor identifizierten Kommentare best effort gelöscht. Nicht gelöscht werden Systemnotes und normale Nutzerkommentare ohne Dev-Assist-Bezug. Einzelne Löschfehler blockieren den bereits erfolgreichen Publish nicht, sondern werden protokolliert.
 
@@ -794,7 +1006,7 @@ Optional können anschließend Zusatzfelder wie Labels oder Statuswechsel überg
 
 Der Prototyp kann lokal ohne echte GitLab- oder Modellabhängigkeit geprüft werden. Der Mock-Modus erzeugt eine Beispielanalyse und ermöglicht Tests der Routen, Formatierung, Kontextdateien und Publish-Logik ohne externe KI. Manuelle Endpunkte und der CLI-Helfer erlauben gezielte Einzelschritte: Process erzeugt Vorschlag und Kontextdatei, Publish liest diese Datei und aktualisiert das Issue.
 
-GitLab-Webhooks können lokal per \texttt{curl} oder PowerShell an \texttt{/webhooks/gitlab/issues} gesendet werden. \texttt{README.md} enthält dafür ein Beispiel mit \texttt{object\_kind: "issue"}, Projekt-ID, Issue-IID, Titel und Beschreibung mit \texttt{@dev-assist}. Soll GitLab den lokalen Dienst erreichen, kann \texttt{src/services/tunnel.ts} mit Cloudflare Tunnel eine öffentliche \texttt{trycloudflare.com}-URL erzeugen und den Webhook-Pfad anhängen.
+GitLab-Webhooks können lokal per \texttt{curl} oder PowerShell an \path{/webhooks/gitlab/issues} gesendet werden. \texttt{README.md} enthält dafür ein Beispiel mit \texttt{object\_kind: "issue"}, Projekt-ID, Issue-IID, Titel und Beschreibung mit \texttt{@dev-assist}. Soll GitLab den lokalen Dienst erreichen, kann \path{src/services/tunnel.ts} mit Cloudflare Tunnel eine öffentliche \texttt{trycloudflare.com}-URL erzeugen und den Webhook-Pfad anhängen.
 
 Die automatisierten Tests konzentrieren sich auf deterministische Systemteile:
 
@@ -812,6 +1024,18 @@ Die automatisierten Tests konzentrieren sich auf deterministische Systemteile:
 \path{tests/cleanup.test.ts} & Auswahl löschbarer und nicht löschbarer Kommentare \\
 \path{tests/formatter.test.ts} & Rückfragekommentare, Kontextdokumente und Platzhalter für schwache Abschnitte \\
 \path{tests/aiPrompt.test.ts} & Repository-Summary, beantwortete Rückfragen und Filterung offener Fragen \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.62\textwidth}@{}}
+\toprule
+\textbf{Testdatei} & \textbf{Abgesicherter Bereich} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Testdatei} & \textbf{Abgesicherter Bereich} \\
+\midrule
+\endhead
 \path{tests/aiOpencode.test.ts} & Parsing über OpenCode-Export-Fallback \\
 \path{tests/repositorySummary.test.ts} & Sammlung, Caching und Extraktion von Repository-Zusammenfassungen \\
 \path{tests/config.test.ts}, \path{tests/tunnel.test.ts} & Konfigurationsdetails und Cloudflare-Tunnel-Helfer \\
@@ -829,6 +1053,7 @@ Prägend ist die Begrenzung der KI-Komponente. Der Agent erhält vorbereiteten K
 
 Gleichzeitig bleiben Grenzen sichtbar. Bild- und Screenshot-Kontext ist noch keine eigene Implementierung, sondern eine Erweiterungsstelle. Die Deduplizierung bleibt prozesslokal und übersteht keinen Neustart; auch die fachliche Qualität realer Modellantworten ist nicht durch ein Ticketkorpus belegt. Kapitel 6 kann daran anschließen, indem es Tests, verbleibende Risiken und die Aussagekraft der Evaluation systematisch bewertet.
 
+\fi
 \input{kapitel_6_qualitaetssicherung}
 
 \input{kapitel_7_ergebnisse}
@@ -839,6 +1064,14 @@ Gleichzeitig bleiben Grenzen sichtbar. Bild- und Screenshot-Kontext ist noch kei
 
 \chapter*{Quellen}
 \addcontentsline{toc}{chapter}{Quellen}
+
+\input{literaturverzeichnis}
+
+\appendix
+\input{anhang}
+
+% Archiv des zuvor unsortierten Quellenverzeichnisses.
+\iffalse
 
 Bettenburg, Nicolas; Just, Sascha; Schröter, Adrian; Weiss, Cathrin; Premraj, Rahul; Zimmermann, Thomas 2008. „What Makes a Good Bug Report?“, in Proceedings of the 16th ACM SIGSOFT International Symposium on Foundations of Software Engineering, S. 308-318. New York: ACM. \url{https://doi.org/10.1145/1453101.1453146}.
 
@@ -852,7 +1085,7 @@ Chaparro, Oscar; Lu, Jing; Zampetti, Fiorella; Moreno, Laura; Di Penta, Massimil
 
 Express Docs o. J. Express.js. Node.js web application framework. \url{https://expressjs.com/en/} (Zugriff vom 25.06.2026).
 
-GitLab Docs o. J.a. Webhooks. \url{https://docs.gitlab.com/user/project/integrations/webhooks/} (Zugriff vom 21.07.2026).
+GitLab Docs o. J.a. Webhooks. \url{https://docs.gitlab.com/user/project/integrations/webhooks/} (Zugriff vom 31.07.2026).
 
 GitLab Docs o. J.b. Webhook events. \url{https://docs.gitlab.com/user/project/integrations/webhook_events/} (Zugriff vom 25.06.2026).
 
@@ -921,6 +1154,8 @@ GitLab Docs o. J.f. GitLab CLI (glab). \url{https://docs.gitlab.com/cli/} (Zugri
 OpenCode Docs o. J.d. CLI.\\
 \url{https://opencode.ai/docs/cli/} (Zugriff vom 08.07.2026).
 
-Projektinterne Arbeitsgrundlagen: \path{README.md}, \path{descriptions/project_description.txt}, \path{AGENTS.md}, \path{package.json}, \path{tsconfig.json}, \path{opencode.json}, \path{.github/workflows/ci.yml}, \path{src/server.ts}, \path{src/app.ts}, \path{src/config.ts}, \path{src/routes/gitlabWebhooks.ts}, \path{src/routes/issues.ts}, \path{src/routes/health.ts}, \path{src/services/gitlab/parser.ts}, \path{src/services/gitlab/mention.ts}, \path{src/services/gitlab/commands.ts}, \path{src/services/gitlab/auth.ts}, \path{src/services/gitlab/client.ts}, \path{src/services/gitlab/cleanup.ts}, \path{src/services/gitlab/glab.ts}, \path{src/services/http/auth.ts}, \path{src/services/processing/processor.ts}, \path{src/services/processing/publisher.ts}, \path{src/services/ai/service.ts}, \path{src/services/ai/instructions.ts}, \path{src/services/ai/schema.ts}, \path{src/services/ai/formatter.ts}, \path{src/services/ai/clarifications.ts}, \path{src/services/ai/opencodeRuntime.ts}, \path{src/services/context/path.ts}, \path{src/services/context/writer.ts}, \path{src/services/context/reader.ts}, \path{src/services/repositorySummary.ts}, \path{src/services/tunnel.ts}, \path{src/utils/logger.ts}, \path{src/cli/publish-issue.ts}, \path{tests/aiOpencode.test.ts}, \path{tests/aiPrompt.test.ts}, \path{tests/auth.test.ts}, \path{tests/cleanup.test.ts}, \path{tests/config.test.ts}, \path{tests/formatter.test.ts}, \path{tests/gitlab.test.ts}, \path{tests/glab.test.ts}, \path{tests/opencodeRuntime.test.ts}, \path{tests/processor.test.ts}, \path{tests/publisher.test.ts}, \path{tests/repositorySummary.test.ts}, \path{tests/schema.test.ts}, \path{tests/security.test.ts}, \path{tests/tunnel.test.ts} und \path{tests/webhookRoute.test.ts}.
+Projektinterne Arbeitsgrundlagen: \path{README.md}, \path{descriptions/project_description.txt}, \path{AGENTS.md}, \path{package.json}, \path{tsconfig.json}, \path{opencode.json}, \path{.env.example}, \path{src/server.ts}, \path{src/app.ts}, \path{src/config.ts}, \path{src/routes/gitlabWebhooks.ts}, \path{src/routes/issues.ts}, \path{src/routes/health.ts}, \path{src/services/gitlab/parser.ts}, \path{src/services/gitlab/mention.ts}, \path{src/services/gitlab/commands.ts}, \path{src/services/gitlab/auth.ts}, \path{src/services/gitlab/client.ts}, \path{src/services/gitlab/cleanup.ts}, \path{src/services/gitlab/glab.ts}, \path{src/services/processing/processor.ts}, \path{src/services/processing/publisher.ts}, \path{src/services/ai/service.ts}, \path{src/services/ai/instructions.ts}, \path{src/services/ai/schema.ts}, \path{src/services/ai/formatter.ts}, \path{src/services/ai/clarifications.ts}, \path{src/services/ai/opencodeRuntime.ts}, \path{src/services/context/writer.ts}, \path{src/services/context/reader.ts}, \path{src/services/repositorySummary.ts}, \path{src/services/tunnel.ts}, \path{src/utils/logger.ts}, \path{src/cli/publish-issue.ts} sowie die 15 tatsächlich vorhandenen Testdateien unter \path{tests/}.
+
+\fi
 
 \end{document}
